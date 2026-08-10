@@ -19,23 +19,43 @@ Python desktop Point of Sale system for **MK Pizza & Ice Bar**, Bhakkar, Pakista
 | cashier | Cashier | `0099` |
 | accountant | Accountant | `0099` |
 
-## Current MVP
+## POS UI
 
-- SQLite database created automatically on first run.
-- Login with role-based users.
-- Product/menu management.
-- POS cart with quantity controls.
-- Cash, card, and other payment methods.
-- Sales are stored with invoice numbers.
-- Printable receipt preview through a save-to-text option.
-- Daily sales summary.
+The recommended launcher is `run_pos.py`. The UI is designed for desktop POS monitors, laptops and smaller displays with responsive sizing and accessibility controls.
+
+- Horizontally scrollable module navigation for narrow displays.
+- Consistent modern ttk controls, tables, spacing and typography.
+- Light and dark appearance options.
+- High-contrast option for improved readability.
+- Adjustable interface scale from 90% to 140%.
+- Compact navigation preference for smaller displays.
+- Keyboard scaling shortcuts: `Ctrl +`, `Ctrl -`, `Ctrl + 0`.
+- Keyboard-focus friendly controls and dialog shortcuts.
+- Dedicated Display & Accessibility settings.
+- Eye-friendly table row heights and touch-friendly controls.
+
+Preferences are stored locally in `ui_preferences.json`.
+
+## Modules
+
+Customers, Suppliers, Products, Analytics, Stats, Staff, Counter Persons, Riders, Kitchen, Settings and Printers are available from the responsive navigation bar.
+
+## Printers
+
+Bluetooth discovery, saved printer configuration, automatic reconnect and editable 80mm receipt themes are supported. See `PRINTERS.md` for setup details.
 
 ## Run
 
-Python 3.10+ is recommended. The application uses only the Python standard library.
+Install dependencies:
 
 ```bash
-python app.py
+pip install -r requirements.txt
 ```
 
-The database is stored locally as `pos.db`.
+Then run:
+
+```bash
+python run_pos.py
+```
+
+The SQLite database is stored locally as `pos.db`.
