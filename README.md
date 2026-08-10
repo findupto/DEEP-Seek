@@ -28,8 +28,6 @@ The recommended launcher is `run_pos.py`. The UI is designed for desktop POS mon
 - Light and dark appearance options.
 - High-contrast option for improved readability.
 - Adjustable interface scale from 90% to 140%.
-- Compact navigation preference for smaller displays.
-- Keyboard scaling shortcuts: `Ctrl +`, `Ctrl -`, `Ctrl + 0`.
 - Keyboard-focus friendly controls and dialog shortcuts.
 - Dedicated Display & Accessibility settings.
 - Eye-friendly table row heights and touch-friendly controls.
@@ -38,7 +36,16 @@ Preferences are stored locally in `ui_preferences.json`.
 
 ## Modules
 
-Customers, Suppliers, Products, Analytics, Stats, Staff, Counter Persons, Riders, Kitchen, Settings and Printers are available from the responsive navigation bar.
+Customers, Suppliers, Products, Analytics, Stats, Staff, Counter Persons, Riders, Kitchen, Settings and Printers are available from the navigation bar.
+
+### Production operations
+
+- **Order Board** — order lifecycle: New, Preparing, Ready, Out for Delivery, Completed and Cancelled.
+- **Cash Control** — opening/closing sessions, expected cash and variance tracking.
+- **Expenses** — record operating expenses with category, amount and notes.
+- **Stock Control** — controlled stock additions, removals and set adjustments with movement history.
+- **Audit Log** — records important operational changes with user, entity, action, details and timestamp.
+- **Backup & Recovery** — create a local SQLite database backup before upgrades or major changes.
 
 ## Printers
 
@@ -58,4 +65,4 @@ Then run:
 python run_pos.py
 ```
 
-The SQLite database is stored locally as `pos.db`.
+The SQLite database is stored locally as `pos.db`. Production tables are added automatically without removing existing data.
