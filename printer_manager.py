@@ -9,13 +9,11 @@ def _load():
     try:
         data=json.loads(CONFIG_PATH.read_text(encoding='utf-8')) if CONFIG_PATH.exists() else {}
         return data if isinstance(data,dict) else {}
-    except Exception:
-        return {}
+    except Exception: return {}
 
 class PrinterManager:
     def __init__(self):
-        self.config=_load(); self.config.setdefault('printer',None); self.sock=None; self.device=None
-        self._last_error=''
+        self.config=_load(); self.config.setdefault('printer',None); self.sock=None; self.device=None; self._last_error=''
     def save(self): CONFIG_PATH.write_text(json.dumps(self.config,indent=2),encoding='utf-8')
     def _windows_ble(self):
         out=[]
@@ -42,13 +40,16 @@ class PrinterManager:
             for p in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL|win32print.PRINTER_ENUM_CONNECTIONS): out.append({'name':p[2],'address':p[2],'type':'Windows Printer','details':str(p[1] or '')})
         except Exception as e: self._last_error=str(e)
         return out
+    def discover_sync(self):
+        rows=self._windows_com()+self._windows_printers()+self._windows_ble(); seen=set(); unique=[]
+        for r in rows:
+            k=(r.get('type'),r.get('address') or r.get('port') or r.get('name'))
+            if k not in seen: seen.add(k); unique.append(r)
+        return unique
     def discover(self,callback=None):
         def worker():
-            rows=self._windows_com()+self._windows_printers()+self._windows_ble(); seen=set(); unique=[]
-            for r in rows:
-                k=(r.get('type'),r.get('address') or r.get('port') or r.get('name'))
-                if k not in seen: seen.add(k); unique.append(r)
-            if callback: callback(unique,True)
+            rows=self.discover_sync()
+            if callback: callback(rows,True)
         threading.Thread(target=worker,daemon=True).start()
     def disconnect(self):
         try:
@@ -93,19 +94,33 @@ class PrinterManager:
         if typ=='Windows Printer': return self._connect_windows_printer(d)
         raise RuntimeError(f'Unsupported transport: {typ}')
     def auto_reconnect(self):
-        try: return self.connect()
-        except Exception: return False
+        saved=self.config.get('printer')
+        if not isinstance(saved,dict): self._last_error='No saved printer.'; return False
+        try: return self.connect(saved,auto=True)
+        except Exception as first:
+            self._last_error=str(first)
+        # Windows Bluetooth COM assignments can change. Rediscover and match the saved
+        # hardware identity/name instead of blindly reopening an obsolete COM number.
+        try:
+            rows=self.discover_sync(); target=str(saved.get('address') or saved.get('name') or '').lower()
+            candidates=[]
+            for r in rows:
+                ident=str(r.get('address') or r.get('port') or '').lower(); name=str(r.get('name') or '').lower()
+                if target and (target==ident or target==name or (saved.get('name') and name==str(saved.get('name')).lower())): candidates.append(r)
+            for r in candidates:
+                try:
+                    if self.connect(r,auto=True): return True
+                except Exception as e: self._last_error=str(e)
+        except Exception as e: self._last_error=str(e)
+        return False
     def auto_detect_and_connect(self,callback=None):
         def worker():
-            try:
-                if isinstance(self.config.get('printer'),dict) and self.connect(self.config['printer'],auto=True):
-                    if callback: callback('Reconnected to saved printer'); return
-            except Exception: pass
-            if callback: callback('No saved printer connection.')
+            ok=self.auto_reconnect()
+            if callback: callback('Reconnected to saved printer' if ok else 'Saved printer could not be reconnected; discover devices to select it.')
         threading.Thread(target=worker,daemon=True).start()
-    def status(self): return {'connected':self.sock is not None,'printer':self.config.get('printer'),'theme':self.config.get('theme','Classic')}
+    def status(self): return {'connected':self.sock is not None,'printer':self.config.get('printer'),'theme':self.config.get('theme','Classic'),'error':self._last_error}
     def write_raw(self,data):
-        if not self.sock and not self.auto_reconnect(): raise RuntimeError('Printer is not connected.')
+        if not self.sock and not self.auto_reconnect(): raise RuntimeError(self._last_error or 'Printer is not connected.')
         if self.device and self.device.get('transport')=='BLE-GATT':
             async def send():
                 try: await self.sock.write_gatt_char(self.device['characteristic'],data,response=False)
@@ -123,30 +138,30 @@ class PrinterManager:
 class PrinterSettings(tk.Toplevel):
     def __init__(self,parent,manager,business=None):
         super().__init__(parent); self.m=manager; self.business=business or {}; self.title('Printer Discovery & Settings'); self.geometry('950x600'); self.transient(parent)
-        self.tree=ttk.Treeview(self,columns=('name','type','address','details'),show='headings');
+        self.tree=ttk.Treeview(self,columns=('name','type','address','details'),show='headings')
         for c in ('name','type','address','details'): self.tree.heading(c,text=c.title()); self.tree.column(c,width=180 if c!='details' else 300)
         self.tree.pack(fill='both',expand=True,padx=12,pady=12); bar=ttk.Frame(self); bar.pack(fill='x',padx=12,pady=(0,12))
-        ttk.Button(bar,text='DISCOVER ALL DEVICES',command=self.discover).pack(side='left'); ttk.Button(bar,text='CONNECT SELECTED',command=self.connect_selected).pack(side='left',padx=6); ttk.Button(bar,text='RECONNECT SAVED',command=self.reconnect).pack(side='left'); ttk.Button(bar,text='TEST PRINT',command=self.test).pack(side='left',padx=6)
+        ttk.Button(bar,text='DISCOVER ALL DEVICES',command=self.discover).pack(side='left'); ttk.Button(bar,text='CONNECT SELECTED',command=self.connect_selected).pack(side='left',padx=6); ttk.Button(bar,text='RECONNECT SAVED',command=self.reconnect).pack(side='left'); ttk.Button(bar,text='TEST PRINT',command=self.test).pack(side='left',padx=6); ttk.Button(bar,text='DISCONNECT',command=self.disconnect).pack(side='left')
         self.status=ttk.Label(self,text='Ready'); self.status.pack(anchor='w',padx=12,pady=(0,10)); self.discover()
     def discover(self):
-        self.status.config(text='Discovering COM, Windows printers and Bluetooth LE devices...')
+        self.status.config(text='Discovering COM, Windows printers and Bluetooth LE devices...'); self._rows=[]
         def done(rows,ok):
             def ui():
-                self.tree.delete(*self.tree.get_children())
-                for i,r in enumerate(rows): self.tree.insert('','end',iid=str(i),values=(r.get('name',''),r.get('type',''),r.get('address',''),r.get('details','')),tags=(str(i),)); self._rows=rows
+                self.tree.delete(*self.tree.get_children()); self._rows=rows
+                for i,r in enumerate(rows): self.tree.insert('','end',iid=str(i),values=(r.get('name',''),r.get('type',''),r.get('address') or r.get('port',''),r.get('details','')))
                 self.status.config(text=f'{len(rows)} devices found')
             self.after(0,ui)
-        self._rows=[]; self.m.discover(done)
+        self.m.discover(done)
     def connect_selected(self):
         sel=self.tree.selection()
         if not sel: return messagebox.showwarning('Printer','Select a device first.',parent=self)
         d=self._rows[int(sel[0])]
-        try:
-            self.m.connect(d); self.status.config(text=f"Connected: {d.get('name','Printer')}"); messagebox.showinfo('Printer',f"Connected to {d.get('name','Printer')}.",parent=self)
+        try: self.m.connect(d); self.status.config(text=f"Connected: {d.get('name','Printer')}"); messagebox.showinfo('Printer','Connected and saved for automatic reconnect.',parent=self)
         except Exception as e: messagebox.showerror('Connection failed',str(e),parent=self)
     def reconnect(self):
-        if self.m.auto_reconnect(): self.status.config(text='Reconnected to saved printer')
-        else: messagebox.showerror('Printer','Saved printer could not be reconnected.',parent=self)
+        self.status.config(text='Reconnecting...'); self.update_idletasks(); ok=self.m.auto_reconnect(); self.status.config(text='Reconnected to saved printer' if ok else 'Reconnect failed')
+        if not ok: messagebox.showerror('Printer',self.m.status().get('error') or 'Saved printer could not be reconnected.',parent=self)
     def test(self):
         try: self.m.test_print(); messagebox.showinfo('Printer','Test print sent.',parent=self)
         except Exception as e: messagebox.showerror('Print failed',str(e),parent=self)
+    def disconnect(self): self.m.disconnect(); self.status.config(text='Disconnected')
