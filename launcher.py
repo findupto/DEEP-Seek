@@ -1,5 +1,6 @@
 """Single canonical POS launcher with functional feature integrations."""
 import pos_app
+from persistent_data_patch import install as install_persistent_data
 from advanced_features import install
 from operational_patch import install as install_operational
 from catalog_features import install as install_catalog
@@ -12,6 +13,9 @@ from final_ui_patch import install_printer, install_ui
 from canonical_ui_patch import install as install_canonical_ui
 from app_icon_patch import install as install_app_icon
 from product_visuals_patch import install as install_product_visuals
+
+# Keep database/user artwork outside PyInstaller's temporary extraction folder.
+install_persistent_data(pos_app)
 
 # Install data/workflow features first, then install exactly one final UI shell.
 # The legacy ui_responsive_patch is intentionally not loaded: it expects
