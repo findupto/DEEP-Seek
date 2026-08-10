@@ -129,6 +129,6 @@ def install(App):
 
     App.choose_symbol=choose_symbol
     App.product_media=product_media_v2
-    wrap_pos_menu()
+    def wrap_pos_menu(self):
     App._visuals_v2_installed=True
     return App
