@@ -4,6 +4,7 @@ from persistent_data_patch import install as install_persistent_data
 from advanced_features import install
 from operational_patch import install as install_operational
 from catalog_features import install as install_catalog
+from catalog_runtime_fix import install as install_catalog_runtime_fix
 from product_media_patch import install as install_product_media
 from printer_reconnect_patch import install as install_printer_reconnect
 from settings_fix_patch import install as install_settings_fix
@@ -31,7 +32,10 @@ install_printer(__import__('printer_manager'))
 install_ui(pos_app.App)
 install_canonical_ui(pos_app.App)
 install_app_icon(pos_app.App)
+# Keep the existing visual/media feature available, then apply the final
+# catalog runtime layer last so no older page wrapper can hide the catalog.
 install_product_visuals(pos_app.App)
+install_catalog_runtime_fix(pos_app.App)
 
 
 def _install_title_compat():
