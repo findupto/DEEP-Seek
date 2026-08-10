@@ -1,4 +1,4 @@
-from pos_app import main
+from launcher import pos_app
 
 if __name__ == '__main__':
-    main()
+    pos_app.main()
