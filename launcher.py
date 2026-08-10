@@ -11,6 +11,7 @@ from printer_manager import PrinterManager
 from final_ui_patch import install_printer, install_ui
 from canonical_ui_patch import install as install_canonical_ui
 from app_icon_patch import install as install_app_icon
+from product_visuals_patch import install as install_product_visuals
 
 # Install data/workflow features first, then install exactly one final UI shell.
 # The legacy ui_responsive_patch is intentionally not loaded: it expects
@@ -26,6 +27,7 @@ install_printer(__import__('printer_manager'))
 install_ui(pos_app.App)
 install_canonical_ui(pos_app.App)
 install_app_icon(pos_app.App)
+install_product_visuals(pos_app.App)
 
 
 def _install_title_compat():
