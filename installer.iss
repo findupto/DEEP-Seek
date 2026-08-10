@@ -5,7 +5,7 @@
 #define MyAppExeName "MK Pizza & Ice Bar.exe"
 
 [Setup]
-AppId={{7D6A4E91-5B9A-4C86-9B7D-MKPOS2026}}
+AppId={{7D6A4E91-5B9A-4C86-9B7D-202608100001}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
