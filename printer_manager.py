@@ -8,27 +8,32 @@ CONFIG_PATH = BASE_DIR / "printer_config.json"
 
 def _load():
     try:
-        data=json.loads(CONFIG_PATH.read_text(encoding="utf-8")) if CONFIG_PATH.exists() else {}
-        return data if isinstance(data,dict) else {}
+        candidates=[CONFIG_PATH, Path.cwd()/"printer_config.json"]
+        for path in candidates:
+            if path.exists():
+                data=json.loads(path.read_text(encoding="utf-8"))
+                if isinstance(data,dict):
+                    if path != CONFIG_PATH:
+                        try: CONFIG_PATH.write_text(json.dumps(data,indent=2),encoding="utf-8")
+                        except Exception: pass
+                    return data
+        return {}
     except Exception:
         return {}
 
 class _BLELoop:
-    def __init__(self):
-        self.loop=None; self.thread=None; self.ready=threading.Event()
+    def __init__(self): self.loop=None; self.thread=None; self.ready=threading.Event()
     def start(self):
         if self.thread and self.thread.is_alive(): return
         def runner():
             self.loop=asyncio.new_event_loop(); asyncio.set_event_loop(self.loop); self.ready.set(); self.loop.run_forever()
         self.thread=threading.Thread(target=runner,daemon=True); self.thread.start(); self.ready.wait(3)
     def run(self,coro,timeout=15):
-        self.start()
-        return asyncio.run_coroutine_threadsafe(coro,self.loop).result(timeout)
+        self.start(); return asyncio.run_coroutine_threadsafe(coro,self.loop).result(timeout)
 
 class PrinterManager:
     def __init__(self):
-        self.config=_load(); self.config.setdefault("printer",None); self.config.setdefault("theme","Classic")
-        self.sock=None; self.device=None; self._last_error=""; self._ble=None
+        self.config=_load(); self.config.setdefault("printer",None); self.config.setdefault("theme","Classic"); self.sock=None; self.device=None; self._last_error=""; self._ble=None
     def save(self): CONFIG_PATH.write_text(json.dumps(self.config,indent=2),encoding="utf-8")
     def _windows_ble(self):
         out=[]
@@ -44,8 +49,7 @@ class PrinterManager:
         out=[]
         try:
             import serial.tools.list_ports
-            for p in serial.tools.list_ports.comports():
-                out.append({"name":p.description or p.device,"address":p.device,"port":p.device,"type":"Bluetooth/Serial COM" if "bluetooth" in (p.description or "").lower() or "bthenum" in (p.hwid or "").lower() else "Serial/COM","details":p.hwid or "","serial_number":getattr(p,"serial_number","") or "","manufacturer":getattr(p,"manufacturer","") or ""})
+            for p in serial.tools.list_ports.comports(): out.append({"name":p.description or p.device,"address":p.device,"port":p.device,"type":"Bluetooth/Serial COM" if "bluetooth" in (p.description or "").lower() or "bthenum" in (p.hwid or "").lower() else "Serial/COM","details":p.hwid or "","serial_number":getattr(p,"serial_number","") or "","manufacturer":getattr(p,"manufacturer","") or ""})
         except Exception as e: self._last_error=str(e)
         return out
     def _windows_printers(self):
@@ -83,8 +87,7 @@ class PrinterManager:
         last=None
         for rate in rates:
             try:
-                s=serial.Serial(port=port,baudrate=rate,bytesize=8,parity="N",stopbits=1,timeout=1,write_timeout=2)
-                self.sock=s; self.device=dict(d); self.device.update(port=port,baudrate=rate,transport="COM/SPP"); self.config["printer"]=self.device; self.save(); return True
+                s=serial.Serial(port=port,baudrate=rate,bytesize=8,parity="N",stopbits=1,timeout=1,write_timeout=2); self.sock=s; self.device=dict(d); self.device.update(port=port,baudrate=rate,transport="COM/SPP"); self.config["printer"]=self.device; self.save(); return True
             except Exception as e:last=e
         raise RuntimeError(f"Cannot open {port}: {last}")
     def _connect_windows_printer(self,d):
@@ -104,8 +107,7 @@ class PrinterManager:
             if str(ch.service_uuid).lower() in {"000018f0-0000-1000-8000-00805f9b34fb","0000ff00-0000-1000-8000-00805f9b34fb","0000ffe0-0000-1000-8000-00805f9b34fb","49535343-fe7d-4ae5-8fa9-9fafd205e455"}: chosen=ch
         return client,str(chosen.uuid)
     def _connect_ble(self,d):
-        self._ble=self._ble or _BLELoop(); client,char=self._ble.run(self._ble_connect_async(d.get("address"),d.get("characteristic")),timeout=20)
-        self.sock=client; self.device=dict(d); self.device.update(transport="BLE-GATT",characteristic=char); self.config["printer"]=self.device; self.save(); return True
+        self._ble=self._ble or _BLELoop(); client,char=self._ble.run(self._ble_connect_async(d.get("address"),d.get("characteristic")),timeout=20); self.sock=client; self.device=dict(d); self.device.update(transport="BLE-GATT",characteristic=char); self.config["printer"]=self.device; self.save(); return True
     def connect(self,device=None,auto=False):
         d=device or self.config.get("printer")
         if not isinstance(d,dict): raise RuntimeError("Select a printer first.")
@@ -115,14 +117,12 @@ class PrinterManager:
         if typ=="Windows Printer": return self._connect_windows_printer(d)
         raise RuntimeError(f"Unsupported transport: {typ}")
     def _com_matches_saved(self,r,saved):
-        fields=[str(saved.get(k,"")).lower() for k in ("name","details","manufacturer","serial_number") if saved.get(k)]
-        text=" ".join(str(r.get(k,"")) for k in ("name","details","manufacturer","serial_number")).lower()
-        return any(x and x in text for x in fields)
+        fields=[str(saved.get(k,"")).lower() for k in ("name","details","manufacturer","serial_number") if saved.get(k)]; text=" ".join(str(r.get(k,"")) for k in ("name","details","manufacturer","serial_number")).lower(); return any(x and x in text for x in fields)
     def auto_reconnect(self):
         saved=self.config.get("printer")
         if not isinstance(saved,dict): self._last_error="No saved printer."; return False
-        try: return self.connect(saved,auto=True)
-        except Exception as first: self._last_error=str(first)
+        try:return self.connect(saved,auto=True)
+        except Exception as first:self._last_error=str(first)
         try:
             rows=self.discover_sync(); candidates=[]
             for r in rows:
@@ -133,7 +133,7 @@ class PrinterManager:
             for r in candidates:
                 try:
                     if self.connect(r,auto=True): return True
-                except Exception as e: self._last_error=str(e)
+                except Exception as e:self._last_error=str(e)
         except Exception as e:self._last_error=str(e)
         return False
     def auto_detect_and_connect(self,callback=None):
@@ -160,12 +160,9 @@ class PrinterManager:
 
 class PrinterSettings(tk.Toplevel):
     def __init__(self,parent,manager,business=None):
-        super().__init__(parent); self.m=manager; self.business=business or {}; self.title("Printer Discovery & Settings"); self.geometry("1000x620"); self.minsize(700,420); self.transient(parent)
-        self.grid_rowconfigure(0,weight=1); self.grid_columnconfigure(0,weight=1)
-        self.tree=ttk.Treeview(self,columns=("name","type","address","details"),show="headings")
+        super().__init__(parent); self.m=manager; self.business=business or {}; self.title("Printer Discovery & Settings"); self.geometry("1000x620"); self.minsize(700,420); self.transient(parent); self.grid_rowconfigure(0,weight=1); self.grid_columnconfigure(0,weight=1); self.tree=ttk.Treeview(self,columns=("name","type","address","details"),show="headings")
         for c in ("name","type","address","details"): self.tree.heading(c,text=c.title()); self.tree.column(c,width=190 if c!="details" else 360)
-        self.tree.grid(row=0,column=0,columnspan=2,sticky="nsew",padx=12,pady=12); y=ttk.Scrollbar(self,orient="vertical",command=self.tree.yview); y.grid(row=0,column=2,sticky="ns",pady=12); self.tree.configure(yscrollcommand=y.set)
-        bar=ttk.Frame(self); bar.grid(row=1,column=0,columnspan=3,sticky="ew",padx=12,pady=(0,6))
+        self.tree.grid(row=0,column=0,columnspan=2,sticky="nsew",padx=12,pady=12); y=ttk.Scrollbar(self,orient="vertical",command=self.tree.yview); y.grid(row=0,column=2,sticky="ns",pady=12); self.tree.configure(yscrollcommand=y.set); bar=ttk.Frame(self); bar.grid(row=1,column=0,columnspan=3,sticky="ew",padx=12,pady=(0,6))
         for text,cmd in [("DISCOVER ALL DEVICES",self.discover),("CONNECT SELECTED",self.connect_selected),("RECONNECT SAVED",self.reconnect),("TEST PRINT",self.test),("DISCONNECT",self.disconnect)]: ttk.Button(bar,text=text,command=cmd).pack(side="left",padx=(0,5))
         self.status=ttk.Label(self,text="Ready"); self.status.grid(row=2,column=0,columnspan=3,sticky="w",padx=12,pady=(0,10)); self.discover()
     def discover(self):
@@ -179,10 +176,10 @@ class PrinterSettings(tk.Toplevel):
         self.m.discover(done)
     def connect_selected(self):
         sel=self.tree.selection()
-        if not sel: return messagebox.showwarning("Printer","Select a device first.",parent=self)
+        if not sel:return messagebox.showwarning("Printer","Select a device first.",parent=self)
         d=self._rows[int(sel[0])]
-        try: self.m.connect(d); self.status.config(text=f"Connected: {d.get('name','Printer')}"); messagebox.showinfo("Printer","Connected and saved for automatic reconnect.",parent=self)
-        except Exception as e: messagebox.showerror("Connection failed",str(e),parent=self)
+        try:self.m.connect(d); self.status.config(text=f"Connected: {d.get('name','Printer')}"); messagebox.showinfo("Printer","Connected and saved for automatic reconnect.",parent=self)
+        except Exception as e:messagebox.showerror("Connection failed",str(e),parent=self)
     def reconnect(self):
         self.status.config(text="Reconnecting..."); self.update_idletasks()
         def worker():
@@ -192,6 +189,6 @@ class PrinterSettings(tk.Toplevel):
         self.status.config(text="Reconnected to saved printer" if ok else "Reconnect failed")
         if not ok: messagebox.showerror("Printer",err or "Saved printer could not be reconnected.",parent=self)
     def test(self):
-        try: self.m.test_print(); messagebox.showinfo("Printer","Test print sent.",parent=self)
-        except Exception as e: messagebox.showerror("Print failed",str(e),parent=self)
+        try:self.m.test_print(); messagebox.showinfo("Printer","Test print sent.",parent=self)
+        except Exception as e:messagebox.showerror("Print failed",str(e),parent=self)
     def disconnect(self): self.m.disconnect(); self.status.config(text="Disconnected")
