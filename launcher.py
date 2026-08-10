@@ -1,8 +1,10 @@
 """Single canonical POS launcher with operational feature integration."""
 import pos_app
 from advanced_features import install
+from operational_patch import install as install_operational
 
 install(pos_app.App)
+install_operational(pos_app.App)
 
 
 def _install_title_compat():
