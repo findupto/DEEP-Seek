@@ -1,27 +1,20 @@
-"""Final UI and printer persistence fixes.
+"""Final printer persistence fixes.
 
-Keeps one canonical POS while fixing two real operational issues:
-- printer configuration is stored beside the application, not in the process CWD;
-- BLE connections use a persistent asyncio loop so a successful connection survives
-  after the discovery coroutine returns;
-- the sidebar has its own scrollable navigation area and never overlays the footer.
+Keeps printer configuration beside the application and keeps BLE connections
+alive on a dedicated asyncio loop.  This module patches the existing
+PrinterManager; it does not create a second printer implementation.
 """
 import asyncio
 import json
 import shutil
 import threading
 from pathlib import Path
-import tkinter as tk
-from tkinter import ttk, messagebox
 
 
 def install_printer(printer_manager_module):
-    """Make printer configuration deterministic and BLE connections persistent."""
     app_dir = Path(__file__).resolve().parent
     config_path = app_dir / "printer_config.json"
     old_cwd_path = Path("printer_config.json").resolve()
-
-    # Migrate an existing config created by an older build when the paths differ.
     if not config_path.exists() and old_cwd_path.exists() and old_cwd_path != config_path:
         try:
             shutil.copy2(old_cwd_path, config_path)
@@ -42,17 +35,10 @@ def install_printer(printer_manager_module):
         self._ble_loop.run_forever()
         self._ble_loop.close()
 
-    def _ble_stop(self):
-        loop = getattr(self, "_ble_loop", None)
-        if loop and loop.is_running():
-            loop.call_soon_threadsafe(loop.stop)
-        self._ble_loop = None
-        self._ble_thread = None
-
     def _ble_call(self, coro, timeout=15):
         self._ble_start()
-        fut = asyncio.run_coroutine_threadsafe(coro, self._ble_loop)
-        return fut.result(timeout=timeout)
+        future = asyncio.run_coroutine_threadsafe(coro, self._ble_loop)
+        return future.result(timeout=timeout)
 
     async def _ble_connect_coro(self, address):
         from bleak import BleakClient
@@ -66,7 +52,7 @@ def install_printer(printer_manager_module):
                     writable.append(ch)
         if not writable:
             await client.disconnect()
-            raise RuntimeError("Bluetooth LE connected, but the printer exposes no writable GATT characteristic.")
+            raise RuntimeError("Bluetooth LE connected, but no writable GATT characteristic was exposed.")
         preferred = {
             "000018f0-0000-1000-8000-00805f9b34fb",
             "0000ff00-0000-1000-8000-00805f9b34fb",
@@ -79,11 +65,11 @@ def install_printer(printer_manager_module):
     def _connect_ble_persistent(self, d):
         address = d.get("address")
         if not address:
-            raise RuntimeError("The Bluetooth printer has no usable address.")
-        # Close an earlier BLE client without killing the application.
+            raise RuntimeError("The Bluetooth printer has no usable Bluetooth address.")
         try:
-            if getattr(self, "_ble_client", None):
-                self._ble_call(self._ble_client.disconnect(), timeout=5)
+            old = getattr(self, "_ble_client", None)
+            if old:
+                self._ble_call(old.disconnect(), timeout=5)
         except Exception:
             pass
         client, char = self._ble_call(self._ble_connect_coro(address), timeout=20)
@@ -109,18 +95,24 @@ def install_printer(printer_manager_module):
         self._ble_call(send(), timeout=15)
 
     original_init = PM.__init__
-    def init(self):
-        original_init(self)
+    def init(self, *args, **kwargs):
+        original_init(self, *args, **kwargs)
         self._ble_loop = None
         self._ble_thread = None
         self._ble_client = None
         self._ble_char = None
     PM.__init__ = init
 
+    # These are actual bound methods.  The previous patch only defined local
+    # functions and then called self._ble_call(), causing the reported error.
+    PM._ble_start = _ble_start
+    PM._ble_loop_runner = _ble_loop_runner
+    PM._ble_call = _ble_call
+
     original_connect = PM.connect
     def connect(self, device=None, auto=False):
-        d = device or self.config.get("printer")
-        typ = str((d or {}).get("type", ""))
+        d = device or self.config.get("printer") or {}
+        typ = str(d.get("type", ""))
         if typ in ("Bluetooth LE", "BLE"):
             self.disconnect()
             return _connect_ble_persistent(self, d)
@@ -150,7 +142,6 @@ def install_printer(printer_manager_module):
                 return
             except Exception as first:
                 self._last_error = str(first)
-                # One automatic reconnect before failing the print.
                 try:
                     if self.auto_reconnect():
                         _write_ble_persistent(self, data)
@@ -163,68 +154,6 @@ def install_printer(printer_manager_module):
 
 
 def install_ui(App):
-    """Replace the fixed sidebar with a scrollable navigation shell."""
-    def build(self):
-        side = tk.Frame(self, bg="#111827", width=235)
-        side.pack(side="left", fill="y")
-        side.pack_propagate(False)
-
-        tk.Label(side, text="MK PIZZA\n& ICE BAR", bg="#111827", fg="white",
-                 font=("Segoe UI", 17, "bold"), justify="left").pack(anchor="w", padx=18, pady=(20, 10))
-        tk.Label(side, text=f"{self.user['username']} • {self.user['role']}",
-                 bg="#111827", fg="#9ca3af", font=("Segoe UI", 9)).pack(anchor="w", padx=18, pady=(0, 10))
-
-        nav_host = tk.Frame(side, bg="#111827")
-        nav_host.pack(fill="both", expand=True)
-        canvas = tk.Canvas(nav_host, bg="#111827", highlightthickness=0, bd=0)
-        scroll = ttk.Scrollbar(nav_host, orient="vertical", command=canvas.yview)
-        inner = tk.Frame(canvas, bg="#111827")
-        window_id = canvas.create_window((0, 0), window=inner, anchor="nw")
-        canvas.configure(yscrollcommand=scroll.set)
-        canvas.pack(side="left", fill="both", expand=True)
-        scroll.pack(side="right", fill="y")
-
-        modules = ['POS','Dashboard','Orders','Kitchen','Customers','Tables / Dine-in','Suppliers',
-                   'Products','Riders','Staff','Reports','Printers','Settings']
-        buttons = {}
-        for name in modules:
-            b = tk.Button(inner, text=name, anchor="w", relief="flat", bd=0,
-                          bg="#111827", fg="white", activebackground="#1f2937",
-                          activeforeground="white", font=("Segoe UI", 10, "bold"),
-                          padx=18, pady=10, cursor="hand2",
-                          command=lambda x=name: self.show(x))
-            b.pack(fill="x", padx=4, pady=1)
-            buttons[name] = b
-
-        def refresh_scroll(_=None):
-            canvas.configure(scrollregion=canvas.bbox("all"))
-            canvas.itemconfigure(window_id, width=canvas.winfo_width())
-        inner.bind("<Configure>", refresh_scroll)
-        canvas.bind("<Configure>", refresh_scroll)
-
-        def wheel(event):
-            canvas.yview_scroll(-1 * int(event.delta / 120), "units")
-        canvas.bind_all("<MouseWheel>", wheel, add="+")
-
-        footer = tk.Frame(side, bg="#111827", height=42)
-        footer.pack(side="bottom", fill="x")
-        footer.pack_propagate(False)
-        tk.Label(footer, text="MK Pizza & Ice Bar", bg="#111827", fg="#64748b",
-                 font=("Segoe UI", 8)).pack(anchor="w", padx=18, pady=10)
-
-        self.nav_buttons = buttons
-        self.body = ttk.Frame(self, padding=22)
-        self.body.pack(side="left", fill="both", expand=True)
-
-    App.build = build
-
-    # Keep the active module visible/highlighted without changing the page API.
-    original_show = App.show
-    def show(self, name):
-        result = original_show(self, name)
-        for key, b in getattr(self, "nav_buttons", {}).items():
-            active = key == name
-            b.configure(bg="#2563eb" if active else "#111827",
-                         fg="white", activebackground="#1d4ed8")
-        return result
-    App.show = show
+    # Kept as a no-op compatibility hook.  The canonical shell is installed
+    # by canonical_ui_patch, avoiding multiple competing sidebar builders.
+    return App
