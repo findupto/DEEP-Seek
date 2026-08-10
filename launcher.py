@@ -18,12 +18,7 @@ from app_icon_patch import install as install_app_icon
 from product_visuals_patch import install as install_product_visuals
 from supplier_management_patch import install as install_supplier_management
 
-# Keep database/user artwork outside PyInstaller's temporary extraction folder.
 install_persistent_data(pos_app)
-
-# Install data/workflow features first, then install exactly one final UI shell.
-# The legacy ui_responsive_patch is intentionally not loaded: it expects
-# App.build(), which the canonical application does not expose.
 install(pos_app.App)
 install_operational(pos_app.App)
 install_catalog(pos_app.App)
@@ -38,10 +33,18 @@ install_printer(__import__('printer_manager'))
 install_ui(pos_app.App)
 install_canonical_ui(pos_app.App)
 install_app_icon(pos_app.App)
-# Keep the existing visual/media feature available, then apply the final
-# catalog runtime layer last so no older page wrapper can hide the catalog.
 install_product_visuals(pos_app.App)
+# Products/Menu runtime is deliberately the final App-page layer.
+# It provides its own controller registration so older feature patches cannot
+# leave page callbacks pointing at missing methods such as bulk_center.
 install_catalog_runtime_fix(pos_app.App)
+
+# Last-resort compatibility aliases. These do not alter database data and make
+# old callers using either bulk_center spelling resolve to the same controller.
+if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
+    pos_app.App.bulk_center = pos_app.App.bulk_menu_center
+elif hasattr(pos_app.App, "bulk_center") and not hasattr(pos_app.App, "bulk_menu_center"):
+    pos_app.App.bulk_menu_center = pos_app.App.bulk_center
 
 
 def _install_title_compat():
