@@ -5,7 +5,7 @@ from advanced_features import install
 from operational_patch import install as install_operational
 from catalog_features import install as install_catalog
 from catalog_helpers_patch import install as install_catalog_helpers
-from catalog_runtime_fix import install as install_catalog_runtime_fix
+from catalog_runtime_final import install as install_catalog_runtime_final
 from product_media_patch import install as install_product_media
 from printer_reconnect_patch import install as install_printer_reconnect
 from printer_ui_safety_patch import install as install_printer_ui_safety
@@ -34,13 +34,9 @@ install_ui(pos_app.App)
 install_canonical_ui(pos_app.App)
 install_app_icon(pos_app.App)
 install_product_visuals(pos_app.App)
-# Products/Menu runtime is deliberately the final App-page layer.
-# It provides its own controller registration so older feature patches cannot
-# leave page callbacks pointing at missing methods such as bulk_center.
-install_catalog_runtime_fix(pos_app.App)
+# Stable Products/Menu layer is the final page/controller layer.
+install_catalog_runtime_final(pos_app.App)
 
-# Last-resort compatibility aliases. These do not alter database data and make
-# old callers using either bulk_center spelling resolve to the same controller.
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
     pos_app.App.bulk_center = pos_app.App.bulk_menu_center
 elif hasattr(pos_app.App, "bulk_center") and not hasattr(pos_app.App, "bulk_menu_center"):
