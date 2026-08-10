@@ -1,6 +1,8 @@
 # Core POS uses Python standard library.
-# Bluetooth LE discovery:
+# Bluetooth LE discovery and GATT ESC/POS printing:
 bleak>=0.22
 # Windows paired Bluetooth printer COM-port printing:
 pyserial>=3.5
+# Windows installed/spooled printer discovery and RAW printing:
+pywin32>=306
 # Optional Linux/macOS classic Bluetooth discovery can use bluetoothctl/system tools.
