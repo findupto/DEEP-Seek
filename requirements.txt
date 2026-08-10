@@ -5,4 +5,8 @@ bleak>=0.22
 pyserial>=3.5
 # Windows installed/spooled printer discovery and RAW printing:
 pywin32>=306
+# Product image preview / resizing and menu artwork:
+Pillow>=10.0
+# Windows EXE packaging (developer/build machine):
+pyinstaller>=6.0
 # Optional Linux/macOS classic Bluetooth discovery can use bluetoothctl/system tools.
