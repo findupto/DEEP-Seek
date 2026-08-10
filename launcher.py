@@ -3,12 +3,14 @@ import pos_app
 from advanced_features import install
 from operational_patch import install as install_operational
 from catalog_features import install as install_catalog
+from product_media_patch import install as install_product_media
 from printer_reconnect_patch import install as install_printer_reconnect
 from settings_fix_patch import install as install_settings_fix
 from ui_shell import install as install_shell
 from printer_manager import PrinterManager
 from final_ui_patch import install_printer, install_ui
 from canonical_ui_patch import install as install_canonical_ui
+from app_icon_patch import install as install_app_icon
 
 # Install data/workflow features first, then install exactly one final UI shell.
 # The legacy ui_responsive_patch is intentionally not loaded: it expects
@@ -16,12 +18,14 @@ from canonical_ui_patch import install as install_canonical_ui
 install(pos_app.App)
 install_operational(pos_app.App)
 install_catalog(pos_app.App)
+install_product_media(pos_app.App)
 install_printer_reconnect(PrinterManager)
 install_settings_fix(pos_app.App)
 install_shell(pos_app.App)
 install_printer(__import__('printer_manager'))
 install_ui(pos_app.App)
 install_canonical_ui(pos_app.App)
+install_app_icon(pos_app.App)
 
 
 def _install_title_compat():
