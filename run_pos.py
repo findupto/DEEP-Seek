@@ -4,6 +4,7 @@ import pos
 from printer_manager import PrinterManager, PrinterSettings
 from ui_theme import configure, load, make_accessibility_dialog
 import production
+import fastfood_complete
 
 printer_manager=PrinterManager()
 _original_show=pos.Main.show
@@ -29,7 +30,7 @@ def build_nav_with_ui(self):
     canvas=tk.Canvas(nav_outer,height=54,highlightthickness=0,bd=0); scroll=ttk.Scrollbar(nav_outer,orient='horizontal',command=canvas.xview); canvas.configure(xscrollcommand=scroll.set)
     inner=ttk.Frame(canvas); canvas.create_window((0,0),window=inner,anchor='nw'); inner.bind('<Configure>',lambda e:canvas.configure(scrollregion=canvas.bbox('all')))
     canvas.pack(fill='x',expand=True); scroll.pack(fill='x')
-    for n in ['Dashboard','Customers','Suppliers','Products','Analytics','Stats','Staff','Counter Persons','Riders','Kitchen','Settings','Printers','Order Board','Cash Control','Expenses','Stock Control','Audit Log','Backup & Recovery']:
+    for n in ['POS Sale','Dashboard','Customers','Suppliers','Products','Analytics','Stats','Staff','Counter Persons','Riders','Kitchen','Settings','Printers','Order Board','Cash Control','Expenses','Stock Control','Audit Log','Backup & Recovery','Purchases','Returns','Recipes']:
         ttk.Button(inner,text=n,command=lambda x=n:self.show(x)).pack(side='left',padx=3,pady=3)
     canvas.bind('<Shift-MouseWheel>',lambda e:canvas.xview_scroll(int(-e.delta/120),'units'))
     self.body=ttk.Frame(self,padding=12); self.body.pack(fill='both',expand=True)
@@ -67,8 +68,12 @@ pos.Main.show=show_with_printer
 pos.Main.__init__=main_init
 pos.Main._resize_ui=resize_ui
 
-# Production hardening is installed on the existing SQLite database before login.
-production.install(pos.DB())
+# Install all database extensions before login and patch the existing Main class.
+db=pos.DB()
+production.install(db)
 production.patch(pos.Main)
+fastfood_complete.install(db)
+fastfood_complete.patch(pos.Main, pos.DB)
+del db
 
 if __name__=='__main__':pos.Login(pos.DB()).mainloop()
