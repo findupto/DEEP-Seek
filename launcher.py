@@ -3,10 +3,15 @@ import pos_app
 from advanced_features import install
 from operational_patch import install as install_operational
 from catalog_features import install as install_catalog
+from ui_responsive_patch import install as install_responsive
+from printer_reconnect_patch import install as install_printer_reconnect
+from printer_manager import PrinterManager
 
 install(pos_app.App)
 install_operational(pos_app.App)
 install_catalog(pos_app.App)
+install_responsive(pos_app.App)
+install_printer_reconnect(PrinterManager)
 
 
 def _install_title_compat():
