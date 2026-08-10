@@ -5,6 +5,7 @@ from operational_patch import install as install_operational
 from catalog_features import install as install_catalog
 from ui_responsive_patch import install as install_responsive
 from printer_reconnect_patch import install as install_printer_reconnect
+from ui_shell import install as install_shell
 from printer_manager import PrinterManager
 
 install(pos_app.App)
@@ -12,6 +13,7 @@ install_operational(pos_app.App)
 install_catalog(pos_app.App)
 install_responsive(pos_app.App)
 install_printer_reconnect(PrinterManager)
+install_shell(pos_app.App)
 
 
 def _install_title_compat():
