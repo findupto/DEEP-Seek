@@ -35,6 +35,8 @@ class Store:
         CREATE TABLE IF NOT EXISTS delivery_events(id INTEGER PRIMARY KEY AUTOINCREMENT,sale_id INTEGER,status TEXT,note TEXT,latitude TEXT,longitude TEXT,created_at TEXT,user_id INTEGER);
         CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT);
         CREATE TABLE IF NOT EXISTS shifts(id INTEGER PRIMARY KEY AUTOINCREMENT,user_id INTEGER,opened_at TEXT,closed_at TEXT,opening_cash REAL DEFAULT 0,closing_cash REAL,notes TEXT DEFAULT '');
+        CREATE TABLE IF NOT EXISTS purchases(id INTEGER PRIMARY KEY AUTOINCREMENT,invoice_no TEXT UNIQUE,supplier_id INTEGER,user_id INTEGER,total REAL,payment_status TEXT DEFAULT 'Unpaid',created_at TEXT,note TEXT DEFAULT '');
+        CREATE TABLE IF NOT EXISTS purchase_items(id INTEGER PRIMARY KEY AUTOINCREMENT,purchase_id INTEGER,product_id INTEGER,product_name TEXT,quantity REAL,unit_cost REAL,line_total REAL);
         """)
         for col, typ in [("per_km","REAL DEFAULT 0"),("base_fee","REAL DEFAULT 0")]:
             try: self.q(f"ALTER TABLE riders ADD COLUMN {col} {typ}")
@@ -68,7 +70,7 @@ class ScrollFrame(ttk.Frame):
         except Exception: pass
 
 class App(tk.Tk):
-    NAV=["POS","Dashboard","Orders","Kitchen","Customers","Tables / Dine-in","Suppliers","Products / Menu","Inventory","Riders / Delivery","Staff","Expenses","Reports / Analytics","Printers","Settings","Users / Permissions"]
+    NAV=["POS","Dashboard","Orders","Kitchen","Customers","Tables / Dine-in","Suppliers","Purchases","Products / Menu","Inventory","Riders / Delivery","Staff","Expenses","Cash / Shifts","Reports / Analytics","Printers","Settings","Users / Permissions"]
     def __init__(self,s,user):
         super().__init__(); self.s=s; self.user=user; self.cart={}; self.pm=PrinterManager(); self.title(BUSINESS["name"]+" — POS"); self.geometry("1400x850"); self.minsize(900,600); st=ttk.Style(self); st.theme_use("clam"); st.configure("TButton",padding=(9,7)); st.configure("Primary.TButton",background="#2563eb",foreground="white",font=("Segoe UI",10,"bold"),padding=(12,10)); st.configure("Title.TLabel",font=("Segoe UI",22,"bold")); st.configure("Treeview",rowheight=30,font=("Segoe UI",10)); st.configure("Treeview.Heading",font=("Segoe UI",10,"bold")); self.build_shell(); self.show("POS"); self.after(700,self.pm.auto_reconnect)
     def build_shell(self):
@@ -280,44 +282,29 @@ class App(tk.Tk):
         name=self.s.q("SELECT name FROM tables WHERE id=?",(int(sel[0]),)).fetchone()["name"];rows=self.s.rows("SELECT invoice_no,total,payment_status,status,created_at FROM sales WHERE table_no=? ORDER BY id DESC",(name,));w=self.dialog("Table History",760,500);f=ScrollFrame(w);f.pack(fill="both",expand=True);t=self.table(f.inner,("invoice","total","payment","status","date"),{"invoice":"Invoice","total":"Total","payment":"Payment","status":"Status","date":"Date"},16)
         for r in rows:t.insert("","end",values=(r["invoice_no"],self.money(r["total"]),r["payment_status"],r["status"],r["created_at"]))
 
-    def page_products_menu(self):
-        self.title("Products & Menu","Real catalog management: add/edit/deactivate, stock, CSV import/export and history.");bar=ttk.Frame(self.bodyinner);bar.pack(fill="x",pady=8);ttk.Button(bar,text="ADD PRODUCT",style="Primary.TButton",command=self.product_edit).pack(side="left");ttk.Button(bar,text="EDIT",command=self.product_edit).pack(side="left",padx=4);ttk.Button(bar,text="DEACTIVATE",command=self.product_delete).pack(side="left");ttk.Button(bar,text="PRODUCT HISTORY",command=self.product_history).pack(side="left",padx=4);ttk.Button(bar,text="IMPORT CSV",command=self.product_import).pack(side="right");ttk.Button(bar,text="EXPORT CSV",command=self.product_export).pack(side="right",padx=4);self.pr=self.table(self.bodyinner,("id","name","category","price","cost","stock","barcode"),{"id":"ID","name":"Name","category":"Category","price":"Price","cost":"Cost","stock":"Stock","barcode":"Barcode"},18);self.load_products()
-    def load_products(self):
-        for x in self.pr.get_children():self.pr.delete(x)
-        for r in self.s.rows("SELECT * FROM products WHERE active=1 ORDER BY category,name"):self.pr.insert("","end",iid=str(r["id"]),values=(r["id"],r["name"],r["category"],self.money(r["price"]),self.money(r["cost"]),r["stock"],r["barcode"]))
-    def product_edit(self):
-        sel=self.pr.selection() if hasattr(self,"pr") else ();old=self.s.q("SELECT * FROM products WHERE id=?",(int(sel[0]),)).fetchone() if sel else None;w=self.dialog("Product",460,520);f=ScrollFrame(w);f.pack(fill="both",expand=True);p=f.inner;v={}
-        for k in ["name","category","price","cost","stock","barcode"]:ttk.Label(p,text=k.title()).pack(anchor="w");v[k]=tk.StringVar(value=str(old[k]) if old else "");ttk.Entry(p,textvariable=v[k]).pack(fill="x",pady=3)
+    def page_purchases(self):
+        self.title("Purchases","Receive stock from suppliers, record cost and update inventory.");bar=ttk.Frame(self.bodyinner);bar.pack(fill="x",pady=8);ttk.Button(bar,text="NEW PURCHASE",style="Primary.TButton",command=self.new_purchase).pack(side="left");t=self.table(self.bodyinner,("id","invoice","supplier","total","payment","date"),{"id":"ID","invoice":"Invoice","supplier":"Supplier","total":"Total","payment":"Payment","date":"Date"},18)
+        for r in self.s.rows("SELECT p.*,COALESCE(s.name,'Unknown') supplier FROM purchases p LEFT JOIN suppliers s ON s.id=p.supplier_id ORDER BY p.id DESC"):t.insert("","end",values=(r["id"],r["invoice_no"],r["supplier"],self.money(r["total"]),r["payment_status"],r["created_at"]))
+    def new_purchase(self):
+        suppliers=self.s.rows("SELECT * FROM suppliers WHERE active=1 ORDER BY name");products=self.s.rows("SELECT * FROM products WHERE active=1 ORDER BY name")
+        if not products:return messagebox.showwarning("Purchase","Add products first.",parent=self)
+        w=self.dialog("New Purchase",720,700);f=ScrollFrame(w);f.pack(fill="both",expand=True);p=f.inner;smap={f"{r['name']} | {r['phone']}":r["id"] for r in suppliers};sv=tk.StringVar();ttk.Label(p,text="Supplier").pack(anchor="w");ttk.Combobox(p,textvariable=sv,values=list(smap),state="readonly").pack(fill="x");rows=[];box=ttk.LabelFrame(p,text="Purchase Lines",padding=10);box.pack(fill="x",pady=10);pc=tk.StringVar();qtyv=tk.DoubleVar(value=1);costv=tk.DoubleVar(value=0);ttk.Label(box,text="Product").grid(row=0,column=0,sticky="w");ttk.Label(box,text="Qty").grid(row=0,column=1,sticky="w");ttk.Label(box,text="Unit Cost").grid(row=0,column=2,sticky="w");ttk.Combobox(box,textvariable=pc,values=[f"{r['name']} | ID {r['id']}" for r in products],state="readonly").grid(row=1,column=0,sticky="ew",padx=3);ttk.Entry(box,textvariable=qtyv,width=10).grid(row=1,column=1,padx=3);ttk.Entry(box,textvariable=costv,width=12).grid(row=1,column=2,padx=3);line=self.table(p,("product","qty","cost","total"),{"product":"Product","qty":"Qty","cost":"Unit Cost","total":"Line Total"},8);totalv=tk.StringVar(value=self.money(0))
+        def add_line():
+            try:
+                pid=int(pc.get().split("ID ")[-1]);r=next(x for x in products if x["id"]==pid);q=float(qtyv.get());c=float(costv.get());
+                if q<=0 or c<0:raise ValueError()
+                rows.append((pid,r["name"],q,c));line.insert("","end",iid=str(len(rows)-1),values=(r["name"],q,self.money(c),self.money(q*c)));totalv.set(self.money(sum(x[2]*x[3] for x in rows)))
+            except Exception:messagebox.showerror("Purchase","Select a product and enter valid quantity/cost.",parent=w)
+        ttk.Button(box,text="ADD LINE",command=add_line).grid(row=1,column=3,padx=5);ttk.Label(p,textvariable=totalv,font=("Segoe UI",15,"bold")).pack(anchor="e",pady=8);pay=tk.StringVar(value="Paid");ttk.Label(p,text="Payment").pack(anchor="w");ttk.Combobox(p,textvariable=pay,values=["Paid","Unpaid"],state="readonly").pack(fill="x");note=tk.StringVar();ttk.Label(p,text="Note").pack(anchor="w",pady=(8,2));ttk.Entry(p,textvariable=note).pack(fill="x")
         def save():
             try:
-                data=(v["name"].get().strip(),v["category"].get().strip() or "General",float(v["price"].get()),float(v["cost"].get() or 0),float(v["stock"].get() or 0),v["barcode"].get().strip())
-                if not data[0] or data[2]<0 or data[4]<0:raise ValueError()
-                if old:self.s.q("UPDATE products SET name=?,category=?,price=?,cost=?,stock=?,barcode=? WHERE id=?",data+(old["id"],))
-                else:self.s.q("INSERT INTO products(name,category,price,cost,stock,barcode) VALUES(?,?,?,?,?,?)",data)
-                self.s.c.commit();w.destroy();self.show("Products / Menu")
-            except Exception:messagebox.showerror("Product","Enter valid values.",parent=w)
-        ttk.Button(p,text="SAVE PRODUCT",style="Primary.TButton",command=save).pack(fill="x",pady=15)
-    def product_delete(self):
-        sel=self.pr.selection()
-        if sel and messagebox.askyesno("Deactivate","Deactivate selected product?",parent=self):self.s.q("UPDATE products SET active=0 WHERE id=?",(int(sel[0]),));self.s.c.commit();self.load_products()
-    def product_history(self):
-        sel=self.pr.selection()
-        if not sel:return
-        pid=int(sel[0]);r=self.s.q("SELECT * FROM products WHERE id=?",(pid,)).fetchone();w=self.dialog("Product History — "+r["name"],850,550);f=ScrollFrame(w);f.pack(fill="both",expand=True);t=self.table(f.inner,("qty","type","note","date"),{"qty":"Qty","type":"Movement","note":"Note","date":"Date"},16)
-        for x in self.s.rows("SELECT qty,movement_type,note,created_at FROM stock_movements WHERE product_id=? ORDER BY id DESC",(pid,)):t.insert("","end",values=(x["qty"],x["movement_type"],x["note"],x["created_at"]))
-    def product_export(self):
-        p=filedialog.asksaveasfilename(defaultextension=".csv",filetypes=[("CSV","*.csv")],parent=self)
-        if not p:return
-        rows=self.s.rows("SELECT id,name,category,price,cost,stock,barcode FROM products WHERE active=1")
-        with open(p,"w",newline="",encoding="utf-8-sig") as f:w=csv.writer(f);w.writerow(["id","name","category","price","cost","stock","barcode"]);w.writerows([list(r) for r in rows])
-    def product_import(self):
-        p=filedialog.askopenfilename(filetypes=[("CSV","*.csv")],parent=self)
-        if not p:return
-        try:
-            with open(p,newline="",encoding="utf-8-sig") as f:
-                for r in csv.DictReader(f):self.s.q("INSERT INTO products(name,category,price,cost,stock,barcode) VALUES(?,?,?,?,?,?)",(r["name"].strip(),r.get("category","General"),float(r["price"]),float(r.get("cost") or 0),float(r.get("stock") or 0),r.get("barcode","").strip()))
-            self.s.c.commit();self.load_products()
-        except Exception as e:messagebox.showerror("Import failed",str(e),parent=self)
+                if not rows:raise ValueError("Add at least one line.")
+                sid=smap.get(sv.get());total=sum(x[2]*x[3] for x in rows);inv="PUR-"+datetime.now().strftime("%Y%m%d%H%M%S")+f"-{self.s.q('SELECT COALESCE(MAX(id),0)+1 FROM purchases').fetchone()[0]}";cur=self.s.q("INSERT INTO purchases(invoice_no,supplier_id,user_id,total,payment_status,created_at,note) VALUES(?,?,?,?,?,?,?)",(inv,sid,self.user["id"],total,pay.get(),now(),note.get()));pid=cur.lastrowid
+                for prod,name,q,c in rows:self.s.q("INSERT INTO purchase_items(purchase_id,product_id,product_name,quantity,unit_cost,line_total) VALUES(?,?,?,?,?,?)",(pid,prod,name,q,c,q*c));self.s.q("UPDATE products SET stock=stock+?,cost=? WHERE id=?",(q,c,prod));self.s.q("INSERT INTO stock_movements(product_id,qty,movement_type,note,created_at,user_id) VALUES(?,?,?,?,?,?)",(prod,q,"PURCHASE",inv,now(),self.user["id"]))
+                if sid and pay.get()=="Unpaid":self.s.q("INSERT INTO party_transactions(party_type,party_id,txn_type,amount,note,created_at,user_id) VALUES(?,?,?,?,?,?,?)",("Supplier",sid,"Credit",total,inv,now(),self.user["id"]));self.s.q("UPDATE suppliers SET balance=balance+? WHERE id=?",(total,sid))
+                self.s.c.commit();w.destroy();self.show("Purchases")
+            except Exception as e:messagebox.showerror("Purchase failed",str(e),parent=w)
+        ttk.Button(p,text="SAVE PURCHASE / RECEIVE STOCK",style="Primary.TButton",command=save).pack(fill="x",pady=15)
 
     def page_inventory(self):
         self.title("Inventory","Real stock adjustments and movement history.");bar=ttk.Frame(self.bodyinner);bar.pack(fill="x",pady=8);ttk.Button(bar,text="ADJUST STOCK",style="Primary.TButton",command=self.adjust_stock).pack(side="left");ttk.Button(bar,text="MOVEMENT HISTORY",command=self.inventory_history).pack(side="left",padx=5);self.it=self.table(self.bodyinner,("id","name","stock","cost","value"),{"id":"ID","name":"Product","stock":"Stock","cost":"Cost","value":"Stock Value"},18)
@@ -396,6 +383,26 @@ class App(tk.Tk):
                 self.s.q("INSERT INTO expenses(category,amount,note,created_at,user_id) VALUES(?,?,?,?,?)",(c.get(),float(a.get()),n.get(),now(),self.user["id"]));self.s.c.commit();w.destroy();self.show("Expenses")
             except Exception:messagebox.showerror("Expense","Enter a positive amount.",parent=w)
         ttk.Button(f,text="SAVE EXPENSE",style="Primary.TButton",command=save).pack(fill="x",pady=15)
+
+    def page_cash_shifts(self):
+        self.title("Cash / Shifts","Open and close cashier shifts and reconcile cash sales.");active=self.s.q("SELECT * FROM shifts WHERE user_id=? AND closed_at IS NULL ORDER BY id DESC LIMIT 1",(self.user["id"],)).fetchone()
+        if active:
+            sales=self.s.q("SELECT COALESCE(SUM(amount),0) FROM payments WHERE user_id=? AND method='Cash' AND datetime(created_at)>=datetime(?)",(self.user["id"],active["opened_at"])).fetchone()[0] or 0;ttk.Label(self.bodyinner,text=f"Open since {active['opened_at']} | Opening cash {self.money(active['opening_cash'])}",font=("Segoe UI",13,"bold")).pack(anchor="w",pady=8);ttk.Label(self.bodyinner,text=f"Cash payments recorded in shift: {self.money(sales)}").pack(anchor="w",pady=4);ttk.Button(self.bodyinner,text="CLOSE SHIFT",style="Primary.TButton",command=lambda:self.close_shift(active["id"])).pack(fill="x",pady=12)
+        else:ttk.Label(self.bodyinner,text="No open shift.").pack(anchor="w",pady=8);ttk.Button(self.bodyinner,text="OPEN SHIFT",style="Primary.TButton",command=self.open_shift).pack(fill="x",pady=12)
+        t=self.table(self.bodyinner,("id","opened","closed","opening","closing"),{"id":"ID","opened":"Opened","closed":"Closed","opening":"Opening Cash","closing":"Closing Cash"},12)
+        for r in self.s.rows("SELECT * FROM shifts WHERE user_id=? ORDER BY id DESC",(self.user["id"],)):t.insert("","end",values=(r["id"],r["opened_at"],r["closed_at"] or "Open",self.money(r["opening_cash"]),"" if r["closing_cash"] is None else self.money(r["closing_cash"])))
+    def open_shift(self):
+        w=self.dialog("Open Shift",400,240);f=ttk.Frame(w,padding=18);f.pack(fill="both",expand=True);a=tk.DoubleVar(value=0);ttk.Label(f,text="Opening Cash").pack(anchor="w");ttk.Entry(f,textvariable=a).pack(fill="x",pady=8)
+        def save():
+            try:self.s.q("INSERT INTO shifts(user_id,opened_at,opening_cash) VALUES(?,?,?)",(self.user["id"],now(),float(a.get())));self.s.c.commit();w.destroy();self.show("Cash / Shifts")
+            except Exception as e:messagebox.showerror("Shift",str(e),parent=w)
+        ttk.Button(f,text="OPEN SHIFT",style="Primary.TButton",command=save).pack(fill="x",pady=15)
+    def close_shift(self,sid):
+        w=self.dialog("Close Shift",430,300);f=ttk.Frame(w,padding=18);f.pack(fill="both",expand=True);a=tk.DoubleVar();n=tk.StringVar();ttk.Label(f,text="Actual Closing Cash").pack(anchor="w");ttk.Entry(f,textvariable=a).pack(fill="x",pady=8);ttk.Label(f,text="Notes").pack(anchor="w");ttk.Entry(f,textvariable=n).pack(fill="x")
+        def save():
+            try:self.s.q("UPDATE shifts SET closed_at=?,closing_cash=?,notes=? WHERE id=?",(now(),float(a.get()),n.get(),sid));self.s.c.commit();w.destroy();self.show("Cash / Shifts")
+            except Exception as e:messagebox.showerror("Shift",str(e),parent=w)
+        ttk.Button(f,text="CLOSE SHIFT",style="Primary.TButton",command=save).pack(fill="x",pady=15)
 
     def page_reports_analytics(self):
         self.title("Reports & Analytics","Live financial, sales, inventory and payment metrics.");t=self.table(self.bodyinner,("metric","value"),{"metric":"Metric","value":"Value"},16);q=[("Gross Sales","SELECT COALESCE(SUM(total),0) FROM sales WHERE status!='Cancelled'"),("Paid","SELECT COALESCE(SUM(amount),0) FROM payments"),("Customer Balances","SELECT COALESCE(SUM(balance),0) FROM customers"),("Supplier Balances","SELECT COALESCE(SUM(balance),0) FROM suppliers"),("Expenses","SELECT COALESCE(SUM(amount),0) FROM expenses"),("Products","SELECT COUNT(*) FROM products WHERE active=1"),("Orders","SELECT COUNT(*) FROM sales"),("Delivery Orders","SELECT COUNT(*) FROM sales WHERE order_type='Delivery'")]
