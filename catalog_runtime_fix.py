@@ -218,7 +218,6 @@ def install(App):
 
         root = host(self)
 
-        # Main product actions.
         bar = ttk.Frame(root)
         bar.pack(fill="x", pady=8)
 
@@ -239,7 +238,6 @@ def install(App):
                 command=command,
             ).pack(side="left", padx=(0, 4))
 
-        # Dedicated bulk operations row. These are real handlers, not dummies.
         bulk = ttk.LabelFrame(
             root,
             text="BULK MENU — CSV IMPORT / EXPORT",
@@ -278,7 +276,6 @@ def install(App):
             foreground="#64748b",
         ).pack(side="left", padx=(10, 0))
 
-        # Category/modifier actions.
         tools = ttk.Frame(root)
         tools.pack(fill="x", pady=(0, 8))
 
@@ -294,7 +291,6 @@ def install(App):
             command=self.modifiers,
         ).pack(side="left", padx=5)
 
-        # Search/filter row.
         filters = ttk.Frame(root)
         filters.pack(fill="x", pady=(0, 8))
 
@@ -381,6 +377,9 @@ def install(App):
 
     App.product_delete = delete
     App.product_delete_all = delete_all
+    # The page historically called self.bulk_center; expose that exact name.
+    App.bulk_center = bulk_center
+    # Keep the previous alias for compatibility with any older callers.
     App.bulk_menu_center = bulk_center
     App._selected_product = selected
     App.load_products = lambda self: reload(self)
