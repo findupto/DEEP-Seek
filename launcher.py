@@ -3,20 +3,19 @@ import pos_app
 from advanced_features import install
 from operational_patch import install as install_operational
 from catalog_features import install as install_catalog
-from ui_responsive_patch import install as install_responsive
 from printer_reconnect_patch import install as install_printer_reconnect
 from ui_shell import install as install_shell
 from printer_manager import PrinterManager
 from final_ui_patch import install_printer, install_ui
 
+# The canonical App already builds its responsive shell in build_shell().
+# Do not install the legacy ui_responsive_patch: it expects App.build(),
+# which no longer exists and causes startup failure.
 install(pos_app.App)
 install_operational(pos_app.App)
 install_catalog(pos_app.App)
-install_responsive(pos_app.App)
 install_printer_reconnect(PrinterManager)
 install_shell(pos_app.App)
-# Final pass: deterministic config location, persistent BLE connection, and
-# a sidebar that has its own scroll region instead of overlapping the footer.
 install_printer(__import__('printer_manager'))
 install_ui(pos_app.App)
 
