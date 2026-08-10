@@ -109,26 +109,63 @@ def install(App):
         ttk.Button(f,text="SAVE PRODUCT VISUALS",style="Primary.TButton",command=save).grid(row=8,column=0,columnspan=3,sticky="ew",pady=16)
         preview_image(image_var.get())
 
-    def wrap_pos_menu(self):
-        original = getattr(App, "load_menu", None)
-        if not original or getattr(App, "_visuals_menu_wrapped", False): return
-        def load_menu(self):
-            original(self)
-            if not hasattr(self,"menu"): return
-            init_visuals(self)
-            for iid in self.menu.get_children():
-                r=self.s.q("""SELECT p.*,COALESCE(m.emoji,'') emoji,COALESCE(m.icon,'') icon,COALESCE(m.is_gift,0) is_gift,COALESCE(m.gift_label,'Gift') gift_label
-                              FROM products p LEFT JOIN product_media m ON m.product_id=p.id WHERE p.id=?""",(int(iid),)).fetchone()
-                if not r: continue
-                visual=f"{r['emoji']} {r['icon']}".strip(); label=r["name"]
-                if visual: label=f"{visual} {label}"
-                if r["is_gift"]: label=f"🎁 {r['gift_label']} • {label}"
-                vals=list(self.menu.item(iid,"values"))
-                if vals: vals[0]=label; self.menu.item(iid,values=vals)
-        App.load_menu=load_menu; App._visuals_menu_wrapped=True
+    def wrap_pos_menu():
+    original = getattr(App, "load_menu", None)
+    if not original or getattr(App, "_visuals_menu_wrapped", False):
+        return
 
-    App.choose_symbol=choose_symbol
-    App.product_media=product_media_v2
-    def wrap_pos_menu(self):
-    App._visuals_v2_installed=True
-    return App
+    def load_menu(self):
+        original(self)
+
+        if not hasattr(self, "menu"):
+            return
+
+        init_visuals(self)
+
+        for iid in self.menu.get_children():
+            try:
+                product_id = int(iid)
+            except (TypeError, ValueError):
+                continue
+
+            r = self.s.q(
+                """SELECT p.*,
+                          COALESCE(m.emoji,'') AS emoji,
+                          COALESCE(m.icon,'') AS icon,
+                          COALESCE(m.is_gift,0) AS is_gift,
+                          COALESCE(m.gift_label,'Gift') AS gift_label
+                   FROM products p
+                   LEFT JOIN product_media m ON m.product_id=p.id
+                   WHERE p.id=?""",
+                (product_id,)
+            ).fetchone()
+
+            if not r:
+                continue
+
+            visual = f"{r['emoji']} {r['icon']}".strip()
+            label = r["name"]
+
+            if visual:
+                label = f"{visual} {label}"
+
+            if r["is_gift"]:
+                label = f"🎁 {r['gift_label']} • {label}"
+
+            vals = list(self.menu.item(iid, "values"))
+
+            if vals:
+                vals[0] = label
+                self.menu.item(iid, values=vals)
+
+    App.load_menu = load_menu
+    App._visuals_menu_wrapped = True
+
+
+App.choose_symbol = choose_symbol
+App.product_media = product_media_v2
+
+wrap_pos_menu()
+
+App._visuals_v2_installed = True
+return App
