@@ -1,6 +1,4 @@
-"""Final visual/UX layer for MK Pizza & Ice Bar POS.
-Keeps existing business/data logic intact and makes the UI consistent.
-"""
+"""Final visual/UX layer for MK Pizza & Ice Bar POS."""
 import tkinter as tk
 from tkinter import ttk
 
@@ -8,12 +6,9 @@ from tkinter import ttk
 def install(App, Login=None):
     if getattr(App, "_premium_ui_installed", False):
         return App
-
     st = ttk.Style()
-    try:
-        st.theme_use("clam")
-    except tk.TclError:
-        pass
+    try: st.theme_use("clam")
+    except tk.TclError: pass
     st.configure("TFrame", background="#f4f7fb")
     st.configure("TLabel", background="#f4f7fb", foreground="#172033", font=("Segoe UI", 10))
     st.configure("Title.TLabel", background="#f4f7fb", foreground="#0f172a", font=("Segoe UI", 25, "bold"))
@@ -39,121 +34,93 @@ def install(App, Login=None):
         for w in root.winfo_children():
             try:
                 if isinstance(w, ttk.Button):
-                    text = str(w.cget("text") or "").upper()
-                    current = str(w.cget("style") or "")
+                    text = str(w.cget("text") or "").upper(); current = str(w.cget("style") or "")
                     if current in ("", "TButton"):
-                        if any(x in text for x in ("DELETE", "REMOVE", "ARCHIVE", "CANCEL")):
-                            w.configure(style="Danger.TButton")
-                        elif any(x in text for x in ("ADD", "SAVE", "CHECKOUT", "PAYMENT", "CONNECT", "IMPORT", "CREATE", "OPEN SHIFT")):
-                            w.configure(style="Primary.TButton")
-                        elif any(x in text for x in ("REFRESH", "FILTER", "HISTORY", "VIEW", "BACKUP", "EXPORT", "DOWNLOAD")):
-                            w.configure(style="Soft.TButton")
-            except Exception:
-                pass
-            try:
-                polish(w)
-            except Exception:
-                pass
+                        if any(x in text for x in ("DELETE", "REMOVE", "ARCHIVE", "CANCEL")): w.configure(style="Danger.TButton")
+                        elif any(x in text for x in ("ADD", "SAVE", "CHECKOUT", "PAYMENT", "CONNECT", "IMPORT", "CREATE", "OPEN SHIFT")): w.configure(style="Primary.TButton")
+                        elif any(x in text for x in ("REFRESH", "FILTER", "HISTORY", "VIEW", "BACKUP", "EXPORT", "DOWNLOAD")): w.configure(style="Soft.TButton")
+            except Exception: pass
+            try: polish(w)
+            except Exception: pass
 
     old_build = App.build_shell
     def build_shell(self):
         old_build(self)
         try:
-            self.configure(bg="#f4f7fb")
-            self.minsize(1050, 650)
-            self.geometry("1440x880")
+            self.configure(bg="#f4f7fb"); self.minsize(1050, 650); self.geometry("1440x880")
             self.side.configure(width=248, bg="#0f172a")
             for b in getattr(self, "navbuttons", {}).values():
                 b.configure(bg="#0f172a", fg="#f8fafc", activebackground="#2563eb", activeforeground="white",
                             font=("Segoe UI", 10, "bold"), padx=18, pady=10, relief="flat", bd=0, cursor="hand2")
-                b.bind("<Enter>", lambda _e, x=b: x.configure(bg="#1e3a8a"))
-                b.bind("<Leave>", lambda _e, x=b: x.configure(bg="#2563eb" if getattr(self, "_premium_active", "") == x.cget("text") else "#0f172a"))
-        except Exception:
-            pass
+        except Exception: pass
 
     def modern_pos(self):
         self.title("New Sale", "Fast checkout workspace — search the menu, build the order, then checkout in one clean flow.")
-        root = ttk.Frame(self.bodyinner)
-        root.pack(fill="both", expand=True, pady=(2, 8))
-        root.grid_rowconfigure(1, weight=1)
-        root.grid_columnconfigure(0, weight=3, uniform="pos")
-        root.grid_columnconfigure(1, weight=2, uniform="pos")
-
-        tools = ttk.LabelFrame(root, text="QUICK SALE TOOLS", padding=9)
-        tools.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 9))
-        tools.grid_columnconfigure(0, weight=1)
-        self.search = tk.StringVar()
-        e = ttk.Entry(tools, textvariable=self.search)
-        e.grid(row=0, column=0, sticky="ew")
-        e.bind("<KeyRelease>", lambda _e: self.load_menu())
+        root = ttk.Frame(self.bodyinner); root.pack(fill="both", expand=True, pady=(2, 8))
+        root.grid_rowconfigure(1, weight=1); root.grid_columnconfigure(0, weight=3, uniform="pos"); root.grid_columnconfigure(1, weight=2, uniform="pos")
+        tools = ttk.LabelFrame(root, text="QUICK SALE TOOLS", padding=9); tools.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 9)); tools.grid_columnconfigure(0, weight=1)
+        self.search = tk.StringVar(); e = ttk.Entry(tools, textvariable=self.search); e.grid(row=0, column=0, sticky="ew"); e.bind("<KeyRelease>", lambda _e: self.load_menu())
         ttk.Button(tools, text="SEARCH / FILTER", style="Soft.TButton", command=self.load_menu).grid(row=0, column=1, padx=5)
         ttk.Button(tools, text="ORDERS", command=lambda: self.show("Orders")).grid(row=0, column=2, padx=3)
         ttk.Button(tools, text="KITCHEN", command=lambda: self.show("Kitchen")).grid(row=0, column=3, padx=3)
         ttk.Button(tools, text="PRODUCTS", command=lambda: self.show("Products / Menu")).grid(row=0, column=4, padx=3)
 
-        left = ttk.LabelFrame(root, text="MENU / PRODUCTS", padding=9)
-        right = ttk.LabelFrame(root, text="CURRENT ORDER", padding=9)
-        left.grid(row=1, column=0, sticky="nsew", padx=(0, 6))
-        right.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
-        left.grid_rowconfigure(0, weight=1); left.grid_columnconfigure(0, weight=1)
-        right.grid_rowconfigure(0, weight=1); right.grid_columnconfigure(0, weight=1)
-
+        left = ttk.LabelFrame(root, text="MENU / PRODUCTS", padding=9); right = ttk.LabelFrame(root, text="CURRENT ORDER", padding=9)
+        left.grid(row=1, column=0, sticky="nsew", padx=(0, 6)); right.grid(row=1, column=1, sticky="nsew", padx=(6, 0))
+        left.grid_rowconfigure(0, weight=1); left.grid_columnconfigure(0, weight=1); right.grid_rowconfigure(0, weight=1); right.grid_columnconfigure(0, weight=1)
         mf = ttk.Frame(left); mf.grid(row=0, column=0, sticky="nsew"); mf.grid_rowconfigure(0, weight=1); mf.grid_columnconfigure(0, weight=1)
         self.menu = ttk.Treeview(mf, columns=("name", "cat", "price", "stock", "barcode"), show="headings")
         for c, h, width in (("name","Product",270),("cat","Category",150),("price","Price",120),("stock","Stock",110),("barcode","Barcode",150)):
             self.menu.heading(c, text=h); self.menu.column(c, width=width, minwidth=80, stretch=True)
-        my = ttk.Scrollbar(mf, orient="vertical", command=self.menu.yview); mx = ttk.Scrollbar(mf, orient="horizontal", command=self.menu.xview)
-        self.menu.configure(yscrollcommand=my.set, xscrollcommand=mx.set)
-        self.menu.grid(row=0, column=0, sticky="nsew"); my.grid(row=0, column=1, sticky="ns"); mx.grid(row=1, column=0, sticky="ew")
-        self.menu.bind("<Double-1>", lambda _e: self.add_item())
+        my = ttk.Scrollbar(mf, orient="vertical", command=self.menu.yview); mx = ttk.Scrollbar(mf, orient="horizontal", command=self.menu.xview); self.menu.configure(yscrollcommand=my.set, xscrollcommand=mx.set)
+        self.menu.grid(row=0, column=0, sticky="nsew"); my.grid(row=0, column=1, sticky="ns"); mx.grid(row=1, column=0, sticky="ew"); self.menu.bind("<Double-1>", lambda _e: self.add_item())
         ttk.Button(left, text="+ ADD SELECTED TO ORDER", style="Primary.TButton", command=self.add_item).grid(row=1, column=0, sticky="ew", pady=(9, 0))
-
         cf = ttk.Frame(right); cf.grid(row=0, column=0, sticky="nsew"); cf.grid_rowconfigure(0, weight=1); cf.grid_columnconfigure(0, weight=1)
         self.ct = ttk.Treeview(cf, columns=("name", "qty", "unit", "total"), show="headings")
         for c, h, width in (("name","Item",230),("qty","Qty",70),("unit","Unit",100),("total","Total",120)):
             self.ct.heading(c, text=h); self.ct.column(c, width=width, minwidth=60, stretch=True)
-        cy = ttk.Scrollbar(cf, orient="vertical", command=self.ct.yview); cx = ttk.Scrollbar(cf, orient="horizontal", command=self.ct.xview)
-        self.ct.configure(yscrollcommand=cy.set, xscrollcommand=cx.set)
+        cy = ttk.Scrollbar(cf, orient="vertical", command=self.ct.yview); cx = ttk.Scrollbar(cf, orient="horizontal", command=self.ct.xview); self.ct.configure(yscrollcommand=cy.set, xscrollcommand=cx.set)
         self.ct.grid(row=0, column=0, sticky="nsew"); cy.grid(row=0, column=1, sticky="ns"); cx.grid(row=1, column=0, sticky="ew")
         controls = ttk.Frame(right); controls.grid(row=1, column=0, sticky="ew", pady=8)
-        ttk.Button(controls, text="+ QTY", command=lambda: self.qty(1)).pack(side="left")
-        ttk.Button(controls, text="- QTY", command=lambda: self.qty(-1)).pack(side="left", padx=4)
-        ttk.Button(controls, text="REMOVE", style="Danger.TButton", command=self.remove).pack(side="left")
-        ttk.Button(controls, text="CLEAR", style="Soft.TButton", command=lambda: (self.cart.clear(), self.refresh())).pack(side="right")
+        ttk.Button(controls, text="+ QTY", command=lambda: self.qty(1)).pack(side="left"); ttk.Button(controls, text="- QTY", command=lambda: self.qty(-1)).pack(side="left", padx=4); ttk.Button(controls, text="REMOVE", style="Danger.TButton", command=self.remove).pack(side="left"); ttk.Button(controls, text="CLEAR", style="Soft.TButton", command=lambda: (self.cart.clear(), self.refresh())).pack(side="right")
         summary = ttk.Frame(right); summary.grid(row=2, column=0, sticky="ew", pady=(4, 8)); summary.grid_columnconfigure(0, weight=1)
         ttk.Label(summary, text="ORDER TOTAL", foreground="#64748b", font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w")
         self.total = tk.StringVar(value=self.money(0)); ttk.Label(summary, textvariable=self.total, foreground="#0f172a", font=("Segoe UI", 24, "bold")).grid(row=1, column=0, sticky="w")
         quick = ttk.Frame(right); quick.grid(row=3, column=0, sticky="ew")
-        ttk.Button(quick, text="CUSTOMER / DELIVERY", command=self.checkout).pack(side="left", fill="x", expand=True)
-        ttk.Button(quick, text="TABLE / DINE-IN", command=self.checkout).pack(side="left", fill="x", expand=True, padx=5)
-        ttk.Button(quick, text="CHECKOUT / SEND KITCHEN", style="Success.TButton", command=self.checkout).pack(side="left", fill="x", expand=True)
+        ttk.Button(quick, text="CUSTOMER / DELIVERY", command=self.checkout).pack(side="left", fill="x", expand=True); ttk.Button(quick, text="TABLE / DINE-IN", command=self.checkout).pack(side="left", fill="x", expand=True, padx=5); ttk.Button(quick, text="CHECKOUT / SEND KITCHEN", style="Success.TButton", command=self.checkout).pack(side="left", fill="x", expand=True)
         self.load_menu(); self.refresh()
+
+    def quick_actions(self, name):
+        actions = {
+            "Dashboard": [("NEW SALE", lambda: self.show("POS")), ("ORDERS", lambda: self.show("Orders")), ("KITCHEN", lambda: self.show("Kitchen")), ("REPORTS", lambda: self.show("Reports / Analytics"))],
+            "Staff": [("ADD STAFF", lambda: self.people_edit("staff", ["name", "phone", "role", "salary"])), ("USERS / PERMISSIONS", lambda: self.show("Users / Permissions"))],
+            "Expenses": [("ADD EXPENSE", self.add_expense), ("REPORTS", lambda: self.show("Reports / Analytics"))],
+            "Cash / Shifts": [("OPEN SHIFT", self.open_shift), ("REPORTS", lambda: self.show("Reports / Analytics"))],
+            "Reports / Analytics": [("NEW SALE", lambda: self.show("POS")), ("EXPENSES", lambda: self.show("Expenses")), ("CASH / SHIFTS", lambda: self.show("Cash / Shifts"))],
+            "Settings": [("BACKUP DATABASE", self.backup), ("PRINTERS", lambda: self.show("Printers")), ("USERS", lambda: self.show("Users / Permissions"))],
+        }.get(name)
+        if not actions or getattr(self, "_quick_actions_page", None) == name: return
+        root = self.bodyinner; children = list(root.winfo_children())
+        if not children: return
+        anchor = children[2] if len(children) > 2 else children[-1]
+        bar = ttk.LabelFrame(root, text="QUICK ACTIONS", padding=7); bar.pack(fill="x", pady=(0, 9), before=anchor)
+        for i, (text, cmd) in enumerate(actions): ttk.Button(bar, text=text, style="Primary.TButton" if i == 0 else "Soft.TButton", command=cmd).pack(side="left", padx=(0, 5))
+        self._quick_actions_page = name
 
     old_show = App.show
     def show(self, name):
-        self._premium_active = name
+        self._quick_actions_page = None
         result = old_show(self, name)
-        try:
-            polish(self.bodyinner)
-            self.update_idletasks()
-        except Exception:
-            pass
+        try: self.quick_actions(name); polish(self.bodyinner); self.update_idletasks()
+        except Exception: pass
         return result
 
-    App.build_shell = build_shell
-    App.page_pos = modern_pos
-    App.show = show
-    App._premium_ui_installed = True
-
+    App.build_shell = build_shell; App.page_pos = modern_pos; App.show = show; App._premium_ui_installed = True
     if Login is not None and not getattr(Login, "_premium_login_installed", False):
         old_login = Login.__init__
         def login_init(self, *a, **kw):
             old_login(self, *a, **kw)
-            try:
-                self.configure(bg="#0f172a")
-                self.geometry("470x380")
-            except Exception:
-                pass
-        Login.__init__ = login_init
-        Login._premium_login_installed = True
+            try: self.configure(bg="#0f172a"); self.geometry("470x380")
+            except Exception: pass
+        Login.__init__ = login_init; Login._premium_login_installed = True
     return App
