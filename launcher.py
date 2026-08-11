@@ -42,6 +42,7 @@ from financial_live_triggers_patch import install as install_financial_live_trig
 from database_reset_patch import install as install_database_reset
 from fresh_database_patch import install as install_fresh_database
 from luxury_theme_patch import install as install_luxury_theme
+from enterprise_transaction_guard import install as install_enterprise_transaction_guard
 
 install_persistent_data(pos_app)
 install(pos_app.App)
@@ -63,7 +64,6 @@ install_catalog_runtime_final(pos_app.App)
 install_product_visual_ui(pos_app.App)
 install_pos_stability(pos_app.App, pos_app.Store, pos_app.Login)
 # Tk themes must not create a default root during headless validation/CLI imports.
-# Windows always has a display for the desktop POS; Unix CI can opt in with DISPLAY.
 if os.name == 'nt' or os.environ.get('DISPLAY'):
     install_premium_ui(pos_app.App, pos_app.Login)
 install_printer_page_final(pos_app.App)
@@ -86,6 +86,7 @@ install_financial_live_triggers(pos_app.App)
 install_database_reset(pos_app.App)
 install_fresh_database(pos_app.App)
 install_luxury_theme(pos_app.App)
+install_enterprise_transaction_guard(pos_app.App)
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
     pos_app.App.bulk_center = pos_app.App.bulk_menu_center
