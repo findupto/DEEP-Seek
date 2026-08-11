@@ -27,6 +27,7 @@ from ultimate_pos_patch import install as install_ultimate_pos
 from pos_completion_patch import install as install_pos_completion
 from profit_notifications_patch import install as install_profit_notifications
 from enterprise_accounting_patch import install as install_enterprise_accounting
+from enterprise_controls_patch import install as install_enterprise_controls
 from luxury_theme_patch import install as install_luxury_theme
 
 install_persistent_data(pos_app)
@@ -45,7 +46,6 @@ install_ui(pos_app.App)
 install_canonical_ui(pos_app.App)
 install_app_icon(pos_app.App)
 install_product_visuals(pos_app.App)
-install_catalog_runtime_final(pos_app.App)
 install_product_visual_ui(pos_app.App)
 install_pos_stability(pos_app.App, pos_app.Store, pos_app.Login)
 install_premium_ui(pos_app.App, pos_app.Login)
@@ -55,9 +55,8 @@ install_financial_integrity(pos_app.App)
 install_ultimate_pos(pos_app.App, pos_app.Login)
 install_pos_completion(pos_app.App)
 install_profit_notifications(pos_app.App)
-# Enterprise accounting: chart of accounts, double-entry journal, AP/AR,
-# valuation policy, accounting periods, financial statements and multi-store foundation.
 install_enterprise_accounting(pos_app.App)
+install_enterprise_controls(pos_app.App)
 install_luxury_theme(pos_app.App)
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
