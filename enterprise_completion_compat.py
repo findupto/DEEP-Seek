@@ -10,10 +10,12 @@ def install():
     if getattr(e, "_compat_fixed", False):
         return e
 
+    from decimal import Decimal
+
     old_issue_cost = e.issue_cost
 
     def issue_cost(*args, **kwargs):
-        return f"{old_issue_cost(*args, **kwargs):.2f}"
+        return f"{Decimal(str(old_issue_cost(*args, **kwargs))):.2f}"
 
     e.issue_cost = issue_cost
 
@@ -49,7 +51,7 @@ def install():
         result = dict(old_p_and_l(*args, **kwargs))
         for key in ("revenue", "expenses", "net_profit"):
             if key in result:
-                result[key] = f"{result[key]:.2f}"
+                result[key] = f"{Decimal(str(result[key])):.2f}"
         return result
 
     e.p_and_l = p_and_l
