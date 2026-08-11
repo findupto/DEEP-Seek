@@ -17,6 +17,7 @@ from canonical_ui_patch import install as install_canonical_ui
 from app_icon_patch import install as install_app_icon
 from product_visuals_patch import install as install_product_visuals
 from supplier_management_patch import install as install_supplier_management
+from pos_stability_patch import install as install_pos_stability
 
 install_persistent_data(pos_app)
 install(pos_app.App)
@@ -36,6 +37,8 @@ install_app_icon(pos_app.App)
 install_product_visuals(pos_app.App)
 # Stable Products/Menu layer is the final page/controller layer.
 install_catalog_runtime_final(pos_app.App)
+# Final data-safety, backup, shutdown and Windows UX hardening.
+install_pos_stability(pos_app.App, pos_app.Store, pos_app.Login)
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
     pos_app.App.bulk_center = pos_app.App.bulk_menu_center
