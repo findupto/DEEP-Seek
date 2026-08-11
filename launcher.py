@@ -1,4 +1,5 @@
 """Single canonical POS launcher with functional feature integrations."""
+import os
 import pos_app
 from persistent_data_patch import install as install_persistent_data
 from advanced_features import install
@@ -61,7 +62,10 @@ install_product_visuals(pos_app.App)
 install_catalog_runtime_final(pos_app.App)
 install_product_visual_ui(pos_app.App)
 install_pos_stability(pos_app.App, pos_app.Store, pos_app.Login)
-install_premium_ui(pos_app.App, pos_app.Login)
+# Tk themes must not create a default root during headless validation/CLI imports.
+# Windows always has a display for the desktop POS; Unix CI can opt in with DISPLAY.
+if os.name == 'nt' or os.environ.get('DISPLAY'):
+    install_premium_ui(pos_app.App, pos_app.Login)
 install_printer_page_final(pos_app.App)
 install_enterprise_hardening(pos_app.App, pos_app.Login)
 install_financial_integrity(pos_app.App)
