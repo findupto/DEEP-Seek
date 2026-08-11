@@ -29,6 +29,7 @@ from profit_notifications_patch import install as install_profit_notifications
 from enterprise_accounting_patch import install as install_enterprise_accounting
 from enterprise_controls_patch import install as install_enterprise_controls
 from enterprise_pos_features_patch import install as install_enterprise_pos_features
+from provider_runtime_patch import install as install_provider_runtime
 from luxury_theme_patch import install as install_luxury_theme
 
 install_persistent_data(pos_app)
@@ -60,6 +61,7 @@ install_profit_notifications(pos_app.App)
 install_enterprise_accounting(pos_app.App)
 install_enterprise_controls(pos_app.App)
 install_enterprise_pos_features(pos_app.App)
+install_provider_runtime(pos_app.App)
 install_luxury_theme(pos_app.App)
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
@@ -74,22 +76,18 @@ def _install_title_compat():
     if page_header is None or getattr(app_cls, '_title_compat_installed', False):
         return
     tk_title = __import__('tkinter').Tk.title
-
     def title(self, text='', subtitle=None):
         if subtitle is None:
             return tk_title(self, text)
         return page_header(self, text, subtitle)
-
     app_cls.title = title
     app_cls._title_compat_installed = True
-
 
 _install_title_compat()
 
 
 def main():
     pos_app.main()
-
 
 if __name__ == '__main__':
     main()
