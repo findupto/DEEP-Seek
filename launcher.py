@@ -37,6 +37,7 @@ from enterprise_completion_patch import install as install_enterprise_completion
 from enterprise_services import install as install_enterprise_services
 from financial_bridge_patch import install as install_financial_bridge
 from database_reset_patch import install as install_database_reset
+from fresh_database_patch import install as install_fresh_database
 from luxury_theme_patch import install as install_luxury_theme
 
 install_persistent_data(pos_app)
@@ -76,6 +77,7 @@ install_enterprise_completion(pos_app.App)
 install_enterprise_services(pos_app.App)
 install_financial_bridge(pos_app.App)
 install_database_reset(pos_app.App)
+install_fresh_database(pos_app.App)
 install_luxury_theme(pos_app.App)
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
