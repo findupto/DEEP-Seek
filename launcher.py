@@ -19,6 +19,7 @@ from product_visuals_patch import install as install_product_visuals
 from product_visual_ui_patch import install as install_product_visual_ui
 from supplier_management_patch import install as install_supplier_management
 from pos_stability_patch import install as install_pos_stability
+from premium_ui_patch import install as install_premium_ui
 
 install_persistent_data(pos_app)
 install(pos_app.App)
@@ -42,6 +43,9 @@ install_catalog_runtime_final(pos_app.App)
 install_product_visual_ui(pos_app.App)
 # Final data-safety, backup, shutdown and Windows UX hardening.
 install_pos_stability(pos_app.App, pos_app.Store, pos_app.Login)
+# Final visual/UX layer is deliberately last so no legacy page can replace the
+# modern shell or POS workspace after installation.
+install_premium_ui(pos_app.App, pos_app.Login)
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
     pos_app.App.bulk_center = pos_app.App.bulk_menu_center
