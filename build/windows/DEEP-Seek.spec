@@ -2,7 +2,13 @@
 from pathlib import Path
 from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
-ROOT = Path(SPECPATH).resolve().parents[2]
+# PyInstaller may evaluate a spec from a temporary working directory.  The
+# build script always starts in the repository root, so use cwd as the stable
+# project root instead of SPECPATH-relative traversal.
+ROOT = Path.cwd().resolve()
+ENTRY = ROOT / 'run_pos.py'
+if not ENTRY.exists():
+    raise SystemExit(f'ERROR: POS launcher not found: {ENTRY}')
 
 hiddenimports = collect_submodules('PIL') + collect_submodules('reportlab')
 
@@ -13,16 +19,13 @@ for pkg in ('PIL', 'reportlab'):
     except Exception:
         pass
 
-# Keep application assets/config templates available to the frozen app.
 for folder in ('assets', 'templates', 'pwa'):
     p = ROOT / folder
     if p.exists():
         datas.append((str(p), folder))
 
-# The launcher is the canonical entry point because it installs the additive
-# enterprise/refund/database-reset/provider layers before starting the UI.
 a = Analysis(
-    [str(ROOT / 'run_pos.py')],
+    [str(ENTRY)],
     pathex=[str(ROOT)],
     binaries=[],
     datas=datas,
