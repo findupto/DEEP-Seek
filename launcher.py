@@ -25,6 +25,7 @@ from enterprise_hardening_patch import install as install_enterprise_hardening
 from financial_integrity_patch import install as install_financial_integrity
 from ultimate_pos_patch import install as install_ultimate_pos
 from pos_completion_patch import install as install_pos_completion
+from refund_fix_patch import install as install_refund_fix
 from profit_notifications_patch import install as install_profit_notifications
 from enterprise_accounting_patch import install as install_enterprise_accounting
 from enterprise_controls_patch import install as install_enterprise_controls
@@ -61,6 +62,7 @@ install_enterprise_hardening(pos_app.App, pos_app.Login)
 install_financial_integrity(pos_app.App)
 install_ultimate_pos(pos_app.App, pos_app.Login)
 install_pos_completion(pos_app.App)
+install_refund_fix(pos_app.App)
 install_profit_notifications(pos_app.App)
 install_enterprise_accounting(pos_app.App)
 install_enterprise_controls(pos_app.App)
