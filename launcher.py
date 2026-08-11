@@ -32,6 +32,8 @@ from enterprise_pos_features_patch import install as install_enterprise_pos_feat
 from provider_runtime_patch import install as install_provider_runtime
 from provider_worker_patch import install as install_provider_worker
 from provider_admin_ui_patch import install as install_provider_admin_ui
+from enterprise_completion_patch import install as install_enterprise_completion
+from enterprise_services import install as install_enterprise_services
 from luxury_theme_patch import install as install_luxury_theme
 
 install_persistent_data(pos_app)
@@ -66,6 +68,8 @@ install_enterprise_pos_features(pos_app.App)
 install_provider_runtime(pos_app.App)
 install_provider_worker(pos_app.App)
 install_provider_admin_ui(pos_app.App)
+install_enterprise_completion(pos_app.App)
+install_enterprise_services(pos_app.App)
 install_luxury_theme(pos_app.App)
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
