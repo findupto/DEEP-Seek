@@ -34,6 +34,7 @@ from provider_runtime_patch import install as install_provider_runtime
 from provider_worker_patch import install as install_provider_worker
 from provider_admin_ui_patch import install as install_provider_admin_ui
 from enterprise_completion_patch import install as install_enterprise_completion
+import enterprise_completion_compat
 from enterprise_services import install as install_enterprise_services
 from financial_bridge_patch import install as install_financial_bridge
 from financial_live_triggers_patch import install as install_financial_live_triggers
