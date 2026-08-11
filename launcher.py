@@ -23,6 +23,7 @@ from premium_ui_patch import install as install_premium_ui
 from printer_page_final_patch import install as install_printer_page_final
 from enterprise_hardening_patch import install as install_enterprise_hardening
 from financial_integrity_patch import install as install_financial_integrity
+from ultimate_pos_patch import install as install_ultimate_pos
 from pos_completion_patch import install as install_pos_completion
 from luxury_theme_patch import install as install_luxury_theme
 
@@ -45,16 +46,17 @@ install_product_visuals(pos_app.App)
 install_catalog_runtime_final(pos_app.App)
 install_product_visual_ui(pos_app.App)
 install_pos_stability(pos_app.App, pos_app.Store, pos_app.Login)
-# Final presentation layer: no legacy page is allowed to replace the modern shell/POS.
+# Existing premium POS workspace.
 install_premium_ui(pos_app.App, pos_app.Login)
-# Printer page status/reconnect UX is the last printer-page override.
 install_printer_page_final(pos_app.App)
-# Final enterprise UX/data layer.
 install_enterprise_hardening(pos_app.App, pos_app.Login)
 install_financial_integrity(pos_app.App)
-# Final operational completeness: returns, end-of-day reconciliation and health.
+# Additive completeness layer: holds, split payments, returns, drawer and EOD.
+# It is installed before the existing completion layer so the latter keeps its
+# more mature refund/EOD implementations while the new pages remain available.
+install_ultimate_pos(pos_app.App, pos_app.Login)
 install_pos_completion(pos_app.App)
-# Final visual layer: restrained navy, neutral surfaces and metallic-gold accents.
+# Final presentation layer.
 install_luxury_theme(pos_app.App)
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
