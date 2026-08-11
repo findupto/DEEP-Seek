@@ -1,0 +1,6 @@
+# Optional production server / PWA API
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+pydantic>=2.8,<3
+cryptography>=43,<47
+pytest>=8,<9
