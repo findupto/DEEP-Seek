@@ -12,73 +12,71 @@ Python desktop Point of Sale system for **MK Pizza & Ice Bar**, Bhakkar, Pakista
 
 ## POS UI
 
-The recommended launcher is `run_pos.py`. The desktop client remains local-first and operates without cloud/provider connections.
+The recommended launcher is `run_pos.py`. The desktop client is local-first and does not require cloud/provider connections.
 
-- Minimal, low-motion interface with generous whitespace.
-- Deep navy navigation, soft neutral surfaces and restrained metallic-gold actions.
-- Responsive window sizing, DPI handling and touch-friendly controls.
-- Keyboard focus and accessible interface scaling.
+- Responsive Windows/DPI-aware interface with touch-friendly controls.
+- Product/menu, orders, kitchen, tables, customers, suppliers, purchasing, inventory, riders, staff, expenses, shifts, reports, printers and settings.
+- Product import/export, catalog history, modifiers, product media and operational safeguards.
+- Offline operation with SQLite and explicit backup/reset tooling.
+- Printer auto-detection/reconnect support for supported Windows/Bluetooth/ESC-POS devices.
 
-## Enterprise completion layer
+## Enterprise accounting
 
-`enterprise_completion_patch.py` adds deterministic accounting and inventory valuation primitives without replacing existing POS tables:
+`enterprise_completion_patch.py` adds deterministic accounting and inventory valuation without replacing the existing POS tables:
 
-- Double-entry journals with debit/credit balance enforcement.
+- Double-entry journals with balance enforcement.
 - Chart of accounts, trial balance and P&L.
-- FIFO and weighted-average inventory layers.
-- Automatic cost calculation for valued stock issues.
-- Wastage/spoilage accounting.
-- AP/AR ledgers and tax liability accounts.
-- Locked accounting periods.
-- Store-scoped journals and document numbering.
-- Idempotent offline sync queue and conflict storage.
-- Tamper-evident SHA-256 audit chain with verification.
-- Robust invoice/document sequence allocation.
+- FIFO and weighted-average inventory valuation.
+- COGS, wastage/spoilage, AP/AR and tax liability primitives.
+- Locked accounting periods and store-scoped journals.
+- Idempotent sync queue and conflict storage.
+- Tamper-evident SHA-256 audit chains with verification.
+- Atomic document-number allocation.
 
-`enterprise_services.py` provides optional production services:
+## Security and production services
 
-- PBKDF2 password hashing and verification.
-- Login-attempt rate limiting primitive.
-- Generic payment terminal/wallet adapter.
-- Generic SMS/email adapter.
-- Generic routing/geocoding adapter for ETA/geofence integrations.
-- Encrypted database backups using Fernet when `cryptography` is installed.
-- Restore integrity verification.
+`enterprise_services.py` provides PBKDF2 password hashing, rate limiting, provider adapters and encrypted backups. `enterprise_backend.py` is optional and is **secure by default**:
 
-## Optional API / mobile PWA
+- `/health` and `/ready` remain available for monitoring.
+- Business API endpoints require `POS_API_TOKEN` unless `POS_API_ALLOW_ANONYMOUS=true` is explicitly enabled.
+- CORS defaults to localhost; production deployments should set `POS_CORS` explicitly.
+- GPS coordinates are validated before storage.
+- API database connections are closed on every request path.
 
-`enterprise_backend.py` is a real optional FastAPI service for multi-user/cloud operation. The desktop POS does not depend on it.
+Example server setup:
 
 ```bash
 pip install -r requirements-enterprise.txt
+set POS_API_TOKEN=<long-random-secret>
+set POS_CORS=http://localhost:8080
 uvicorn enterprise_backend:app --host 0.0.0.0 --port 8080
 ```
 
-Endpoints include `/health`, `/api/pnl`, `/api/trial-balance`, `/api/sync`, and `/api/gps/{rider_id}`. Set `POS_API_TOKEN` for API authentication and `POS_CORS` to restrict browser origins.
+The `pwa/` client can be installed on phones/tablets and uses the same API. The desktop POS continues to work when the API is unavailable.
 
-The `pwa/` client is installable on phones/tablets and reads the same API. When the API is unavailable, the existing desktop POS remains usable locally.
+## Providers
 
-## Provider model
+External providers are optional and administrator-controlled. No fake credentials are bundled.
 
-All external integrations are optional and administrator-controlled. An administrator can configure provider URLs/tokens through the existing provider administration UI. No fake credentials are bundled.
+- SMS/email
+- Card terminal/wallet
+- Cloud synchronization
+- GPS/routing
+- Webhooks/notifications
 
-- SMS/email provider
-- Card terminal/wallet provider
-- Cloud synchronization backend
-- GPS/routing provider
-- Webhooks and notification channels
-
-Unconfigured or unavailable providers never need to block local sales; operations can be queued for retry.
+Unavailable providers must not block local sales; supported operations can be queued for retry.
 
 ## Validation
 
+Run the full local validation suite:
+
 ```bash
 python health_check.py
-pip install -r requirements-enterprise.txt
-python -m pytest -q tests/test_enterprise_completion.py
+python smoke_test.py
+python -m pytest -q tests
 ```
 
-GitHub Actions also runs the enterprise regression tests on `main` and pull requests.
+GitHub Actions validates the project on Python 3.11, 3.12 and 3.13, compiles the complete source tree, runs all tests, the offline health check and the launcher smoke test.
 
 ## Run desktop POS
 
