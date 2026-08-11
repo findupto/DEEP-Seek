@@ -29,21 +29,22 @@ def install(App):
             user_id INTEGER
         );
         """)
-        for col, typ in ((
+        for col, typ in (
             ("rider_base_fee", "REAL DEFAULT 0"),
             ("rider_per_km", "REAL DEFAULT 0"),
             ("delivery_distance_km", "REAL DEFAULT 0"),
             ("delivery_fee", "REAL DEFAULT 0"),
             ("tracking_status", "TEXT DEFAULT 'Pending'"),
-        )):
+        ):
             try:
                 self.s.q(f"ALTER TABLE sales ADD COLUMN {col} {typ}")
             except sqlite3.OperationalError:
                 pass
-        # The live POS rider editor stores rates directly on riders, so the
-        # sale snapshot must read the same source instead of a parallel table.
+        # Replace the older trigger if it exists. The live POS rider editor
+        # stores rates directly on riders, so sales must snapshot that source.
         self.s.c.executescript("""
-        CREATE TRIGGER IF NOT EXISTS trg_sale_rider_rate
+        DROP TRIGGER IF EXISTS trg_sale_rider_rate;
+        CREATE TRIGGER trg_sale_rider_rate
         AFTER INSERT ON sales
         WHEN NEW.rider_id IS NOT NULL
         BEGIN
