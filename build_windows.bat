@@ -2,8 +2,14 @@
 setlocal
 cd /d "%~dp0"
 
-echo === MK Pizza ^& Ice Bar - Windows EXE Build ===
+echo ===============================================
+echo   MK Pizza ^& Ice Bar - Windows EXE Builder
+echo ===============================================
+
 python -m pip install -r requirements.txt
+if errorlevel 1 exit /b 1
+
+python build_icon.py
 if errorlevel 1 exit /b 1
 
 rmdir /s /q build 2>nul
@@ -14,7 +20,7 @@ python -m PyInstaller --noconfirm --clean --onefile --windowed --name "MK Pizza 
 if errorlevel 1 exit /b 1
 
 echo.
-echo EXE created: dist\MK Pizza & Ice Bar.exe
+echo EXE created: dist\MK Pizza ^& Ice Bar.exe
 if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" (
   echo Building installer...
   "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
@@ -22,7 +28,7 @@ if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" (
   echo Building installer...
   "C:\Program Files\Inno Setup 6\ISCC.exe" installer.iss
 ) else (
-  echo Inno Setup 6 was not found. The EXE is ready; install Inno Setup to create the desktop-shortcut installer.
+  echo Inno Setup 6 was not found. The EXE is ready; install Inno Setup to create the installer.
 )
 
 endlocal
