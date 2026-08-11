@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local POS data and runtime artifacts
+pos.db
+pos.db-shm
+pos.db-wal
+*.db
+*.db-shm
+*.db-wal
+backups/
+logs/
+*.log
+
+# Local secrets / environment
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Build outputs
+build/dist/
+dist/
+*.spec.bak
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
