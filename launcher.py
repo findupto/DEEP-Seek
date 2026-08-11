@@ -26,6 +26,7 @@ from financial_integrity_patch import install as install_financial_integrity
 from ultimate_pos_patch import install as install_ultimate_pos
 from pos_completion_patch import install as install_pos_completion
 from profit_notifications_patch import install as install_profit_notifications
+from enterprise_accounting_patch import install as install_enterprise_accounting
 from luxury_theme_patch import install as install_luxury_theme
 
 install_persistent_data(pos_app)
@@ -53,8 +54,10 @@ install_enterprise_hardening(pos_app.App, pos_app.Login)
 install_financial_integrity(pos_app.App)
 install_ultimate_pos(pos_app.App, pos_app.Login)
 install_pos_completion(pos_app.App)
-# Accounting + operational alert center. Installed before the final theme.
 install_profit_notifications(pos_app.App)
+# Enterprise accounting: chart of accounts, double-entry journal, AP/AR,
+# valuation policy, accounting periods, financial statements and multi-store foundation.
+install_enterprise_accounting(pos_app.App)
 install_luxury_theme(pos_app.App)
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
