@@ -25,6 +25,7 @@ from enterprise_hardening_patch import install as install_enterprise_hardening
 from financial_integrity_patch import install as install_financial_integrity
 from ultimate_pos_patch import install as install_ultimate_pos
 from pos_completion_patch import install as install_pos_completion
+from profit_notifications_patch import install as install_profit_notifications
 from luxury_theme_patch import install as install_luxury_theme
 
 install_persistent_data(pos_app)
@@ -46,17 +47,14 @@ install_product_visuals(pos_app.App)
 install_catalog_runtime_final(pos_app.App)
 install_product_visual_ui(pos_app.App)
 install_pos_stability(pos_app.App, pos_app.Store, pos_app.Login)
-# Existing premium POS workspace.
 install_premium_ui(pos_app.App, pos_app.Login)
 install_printer_page_final(pos_app.App)
 install_enterprise_hardening(pos_app.App, pos_app.Login)
 install_financial_integrity(pos_app.App)
-# Additive completeness layer: holds, split payments, returns, drawer and EOD.
-# It is installed before the existing completion layer so the latter keeps its
-# more mature refund/EOD implementations while the new pages remain available.
 install_ultimate_pos(pos_app.App, pos_app.Login)
 install_pos_completion(pos_app.App)
-# Final presentation layer.
+# Accounting + operational alert center. Installed before the final theme.
+install_profit_notifications(pos_app.App)
 install_luxury_theme(pos_app.App)
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
