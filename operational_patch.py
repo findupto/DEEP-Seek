@@ -11,8 +11,6 @@ def install(App):
 
     def init(self, *args, **kwargs):
         old_init(self, *args, **kwargs)
-        # Keep this migration self-contained so the trigger never references
-        # columns/tables that have not yet been created by another patch.
         self.s.c.executescript("""
         CREATE TABLE IF NOT EXISTS rider_rates(
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -31,25 +29,27 @@ def install(App):
             user_id INTEGER
         );
         """)
-        for col, typ in (
+        for col, typ in ((
             ("rider_base_fee", "REAL DEFAULT 0"),
             ("rider_per_km", "REAL DEFAULT 0"),
             ("delivery_distance_km", "REAL DEFAULT 0"),
             ("delivery_fee", "REAL DEFAULT 0"),
             ("tracking_status", "TEXT DEFAULT 'Pending'"),
-        ):
+        )):
             try:
                 self.s.q(f"ALTER TABLE sales ADD COLUMN {col} {typ}")
             except sqlite3.OperationalError:
                 pass
+        # The live POS rider editor stores rates directly on riders, so the
+        # sale snapshot must read the same source instead of a parallel table.
         self.s.c.executescript("""
         CREATE TRIGGER IF NOT EXISTS trg_sale_rider_rate
         AFTER INSERT ON sales
         WHEN NEW.rider_id IS NOT NULL
         BEGIN
             UPDATE sales
-            SET rider_base_fee=COALESCE((SELECT base_fee FROM rider_rates WHERE rider_id=NEW.rider_id),0),
-                rider_per_km=COALESCE((SELECT per_km FROM rider_rates WHERE rider_id=NEW.rider_id),0)
+            SET rider_base_fee=COALESCE((SELECT base_fee FROM riders WHERE id=NEW.rider_id),0),
+                rider_per_km=COALESCE((SELECT per_km FROM riders WHERE id=NEW.rider_id),0)
             WHERE id=NEW.id;
         END;
         CREATE INDEX IF NOT EXISTS idx_order_events_sale ON order_events(sale_id,created_at);
@@ -68,10 +68,9 @@ def page_kitchen(self):
     top.pack(fill="x", pady=(0, 8))
     ttk.Button(top, text="REFRESH", command=lambda: self.show("Kitchen")).pack(side="left")
     ttk.Button(top, text="PREPARING", style="Primary.TButton", command=lambda: _move(self, "Preparing", t)).pack(side="left", padx=5)
-    ttk.Button(top, text="READY", style="Primary.TButton", command=lambda: _move(self, "Ready", t)).pack(side="left", padx=5)
-    ttk.Button(top, text="COMPLETED", style="Primary.TButton", command=lambda: _move(self, "Completed", t)).pack(side="left", padx=5)
+    ttk.Button(top, text="READY", style="Primary.TButton", command=lambda: _move(self, "Ready", t)).pack(side="left")
+    ttk.Button(top, text="COMPLETED", style="Primary.TButton", command=lambda: _move(self, "Completed", t)).pack(side="left")
     ttk.Button(top, text="OPEN ORDER", command=lambda: _open(self, t)).pack(side="right")
-
     t = ttk.Treeview(self.body, columns=("id", "invoice", "time", "type", "customer", "items", "status", "payment"), show="headings", height=18)
     heads = {"id": "ID", "invoice": "Invoice", "time": "Time", "type": "Type", "customer": "Customer", "items": "Items", "status": "Kitchen Status", "payment": "Payment"}
     for c in t["columns"]:
