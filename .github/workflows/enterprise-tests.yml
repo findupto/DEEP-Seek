@@ -1,18 +1,38 @@
 name: Enterprise POS Tests
+
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - run: python -m pip install -U pip
-      - run: pip install -r requirements-enterprise.txt
-      - run: python -m pytest -q tests/test_enterprise_completion.py
-      - run: python -m py_compile enterprise_completion_patch.py enterprise_services.py enterprise_backend.py
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install enterprise dependencies
+        run: python -m pip install -r requirements-enterprise.txt
+      - name: Compile all Python sources
+        shell: bash
+        run: python -m compileall -q .
+      - name: Run complete regression suite
+        run: python -m pytest -q tests
+      - name: Run offline health check
+        run: python health_check.py
+      - name: Run launcher smoke test
+        run: python smoke_test.py
