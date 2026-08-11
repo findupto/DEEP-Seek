@@ -21,6 +21,7 @@ from supplier_management_patch import install as install_supplier_management
 from pos_stability_patch import install as install_pos_stability
 from premium_ui_patch import install as install_premium_ui
 from printer_page_final_patch import install as install_printer_page_final
+from enterprise_hardening_patch import install as install_enterprise_hardening
 
 install_persistent_data(pos_app)
 install(pos_app.App)
@@ -45,6 +46,8 @@ install_pos_stability(pos_app.App, pos_app.Store, pos_app.Login)
 install_premium_ui(pos_app.App, pos_app.Login)
 # Printer page status/reconnect UX is the last printer-page override.
 install_printer_page_final(pos_app.App)
+# Last layer: responsive sizing, reliable customer creation/CRUD and operator shortcuts.
+install_enterprise_hardening(pos_app.App, pos_app.Login)
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
     pos_app.App.bulk_center = pos_app.App.bulk_menu_center
