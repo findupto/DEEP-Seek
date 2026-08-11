@@ -10,76 +10,81 @@ Python desktop Point of Sale system for **MK Pizza & Ice Bar**, Bhakkar, Pakista
 - Currency: Rs.
 - Tax: 0%
 
-## Default users
-
-| Username | Role | Password |
-| --- | --- | --- |
-| admin | Admin | `0099` |
-| owner | Owner | `0099` |
-| cashier | Cashier | `0099` |
-| accountant | Accountant | `0099` |
-
 ## POS UI
 
-The recommended launcher is `run_pos.py`. The application is a responsive Tkinter desktop POS for POS monitors, laptops and smaller displays.
+The recommended launcher is `run_pos.py`. The desktop client remains local-first and operates without cloud/provider connections.
 
 - Minimal, low-motion interface with generous whitespace.
 - Deep navy navigation, soft neutral surfaces and restrained metallic-gold actions.
-- Refined typography with a strong display/body contrast.
-- Responsive window sizing, DPI handling and resizable dialogs.
-- Horizontally scrollable navigation for narrow displays.
-- Light/dark/accessibility preferences and adjustable interface scale.
-- Keyboard focus support: `Ctrl+F` focuses POS search, `F5` refreshes the current page, `Esc` closes the top dialog.
-- Touch-friendly controls and readable table row heights.
-- Preferences are stored locally in `ui_preferences.json`.
+- Responsive window sizing, DPI handling and touch-friendly controls.
+- Keyboard focus and accessible interface scaling.
 
-## Modules
+## Enterprise completion layer
 
-Customers, Suppliers, Products, Analytics, Stats, Staff, Counter Persons, Riders, Kitchen, Settings and Printers are available from the navigation bar.
+`enterprise_completion_patch.py` adds deterministic accounting and inventory valuation primitives without replacing existing POS tables:
 
-### Production operations
+- Double-entry journals with debit/credit balance enforcement.
+- Chart of accounts, trial balance and P&L.
+- FIFO and weighted-average inventory layers.
+- Automatic cost calculation for valued stock issues.
+- Wastage/spoilage accounting.
+- AP/AR ledgers and tax liability accounts.
+- Locked accounting periods.
+- Store-scoped journals and document numbering.
+- Idempotent offline sync queue and conflict storage.
+- Tamper-evident SHA-256 audit chain with verification.
+- Robust invoice/document sequence allocation.
 
-- **POS Checkout** — Counter, Takeaway, Dine-in and Delivery orders with customer selection, rider rates, delivery distance/fee, discounts, notes and kitchen dispatch.
-- **Order Board** — New, Preparing, Ready, Out for Delivery, Completed and Cancelled lifecycle with order timeline and delivery tracking.
-- **Payments** — Paid, partial and later collection workflows with payment references.
-- **Returns / Refunds** — Full or partial line refunds, stock restoration, credit-balance adjustment and audit history.
-- **Cash Control** — Opening/closing sessions, expected cash and variance tracking.
-- **End of Day** — Gross sales, refunds, expenses, net sales, cash expectations and payment-method reconciliation.
-- **Expenses** — Operating expense recording and reporting.
-- **Stock Control** — Purchases, controlled stock additions/removals, movement history and checkout stock preflight.
-- **Customers & Suppliers** — CRUD, archive/restore, balances, transactions and histories.
-- **Tables / Dine-in** — Table setup, occupancy and table sessions.
-- **Riders / Delivery** — Rider availability, base/per-km/minimum fees and tracking events.
-- **Audit Log** — Important operational changes with user, entity, action, details and timestamp.
-- **System Health** — SQLite integrity, negative-stock and orphan-record checks plus database export.
-- **Backup & Recovery** — Local SQLite backups before upgrades or major changes.
+`enterprise_services.py` provides optional production services:
 
-## Printers
+- PBKDF2 password hashing and verification.
+- Login-attempt rate limiting primitive.
+- Generic payment terminal/wallet adapter.
+- Generic SMS/email adapter.
+- Generic routing/geocoding adapter for ETA/geofence integrations.
+- Encrypted database backups using Fernet when `cryptography` is installed.
+- Restore integrity verification.
 
-Bluetooth discovery, saved printer configuration, automatic reconnect and editable 80mm receipt themes are supported. See `PRINTERS.md` for setup details.
+## Optional API / mobile PWA
+
+`enterprise_backend.py` is a real optional FastAPI service for multi-user/cloud operation. The desktop POS does not depend on it.
+
+```bash
+pip install -r requirements-enterprise.txt
+uvicorn enterprise_backend:app --host 0.0.0.0 --port 8080
+```
+
+Endpoints include `/health`, `/api/pnl`, `/api/trial-balance`, `/api/sync`, and `/api/gps/{rider_id}`. Set `POS_API_TOKEN` for API authentication and `POS_CORS` to restrict browser origins.
+
+The `pwa/` client is installable on phones/tablets and reads the same API. When the API is unavailable, the existing desktop POS remains usable locally.
+
+## Provider model
+
+All external integrations are optional and administrator-controlled. An administrator can configure provider URLs/tokens through the existing provider administration UI. No fake credentials are bundled.
+
+- SMS/email provider
+- Card terminal/wallet provider
+- Cloud synchronization backend
+- GPS/routing provider
+- Webhooks and notification channels
+
+Unconfigured or unavailable providers never need to block local sales; operations can be queued for retry.
 
 ## Validation
 
-Run the offline health check before deployment:
-
 ```bash
 python health_check.py
+pip install -r requirements-enterprise.txt
+python -m pytest -q tests/test_enterprise_completion.py
 ```
 
-It compiles the Python modules, imports the canonical launcher, verifies required App methods, checks the production schema in memory and runs SQLite integrity validation without modifying `pos.db`.
+GitHub Actions also runs the enterprise regression tests on `main` and pull requests.
 
-## Run
-
-Install dependencies:
+## Run desktop POS
 
 ```bash
 pip install -r requirements.txt
-```
-
-Then run:
-
-```bash
 python run_pos.py
 ```
 
-The SQLite database is stored locally as `pos.db`. Production tables are added automatically without removing existing data.
+The SQLite database is stored locally as `pos.db`. Existing production data is preserved while enterprise tables are added automatically.
