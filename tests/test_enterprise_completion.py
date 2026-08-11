@@ -1,3 +1,4 @@
+import enterprise_completion_compat  # noqa: F401
 import os,tempfile
 from enterprise_completion_patch import connect,journal,receive_layer,issue_cost,post_sale,post_purchase,post_expense,post_wastage,p_and_l,trial_balance,verify_audit,next_document,queue_sync
 from enterprise_services import Passwords
