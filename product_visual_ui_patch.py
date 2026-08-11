@@ -1,5 +1,4 @@
 """Expose saved product artwork in the Products/Menu catalog without changing data."""
-from tkinter import ttk
 
 
 def install(App):
@@ -11,29 +10,35 @@ def install(App):
         if tree is None:
             return
         try:
-            cols = list(tree["columns"])
-            if "visual" not in cols:
-                tree["columns"] = tuple(cols + ["visual"])
+            columns = list(tree["columns"])
+            if "visual" not in columns:
+                columns.append("visual")
+                tree["columns"] = tuple(columns)
                 tree.heading("visual", text="Visual")
                 tree.column("visual", width=180, minwidth=100, anchor="w")
+            visual_index = columns.index("visual")
             for iid in tree.get_children():
                 try:
                     pid = int(iid)
-                    m = self.s.q("SELECT image_path,icon,emoji,is_gift,gift_label FROM product_media WHERE product_id=?", (pid,)).fetchone()
-                    if not m:
-                        visual = ""
-                    else:
-                        bits = []
-                        if m["emoji"]: bits.append(m["emoji"])
-                        if m["icon"]: bits.append(m["icon"])
-                        if m["is_gift"]: bits.append("🎁 " + (m["gift_label"] or "Gift"))
-                        if m["image_path"]: bits.append("📷 Image")
-                        visual = " ".join(bits)
+                    m = self.s.q(
+                        "SELECT image_path,icon,emoji,is_gift,gift_label FROM product_media WHERE product_id=?",
+                        (pid,),
+                    ).fetchone()
+                    bits = []
+                    if m:
+                        if m["emoji"]:
+                            bits.append(m["emoji"])
+                        if m["icon"]:
+                            bits.append(m["icon"])
+                        if m["is_gift"]:
+                            bits.append("🎁 " + (m["gift_label"] or "Gift"))
+                        if m["image_path"]:
+                            bits.append("📷 Image")
+                    visual = " ".join(bits)
                     values = list(tree.item(iid, "values"))
-                    if len(values) < len(cols) + 1:
-                        values.append(visual)
-                    else:
-                        values[-1] = visual
+                    while len(values) < len(columns):
+                        values.append("")
+                    values[visual_index] = visual
                     tree.item(iid, values=values)
                 except Exception:
                     pass
