@@ -1,0 +1,26 @@
+name: POS Smoke Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Compile Python sources
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Recurse -Filter *.py | Where-Object { $_.FullName -notmatch '\\__pycache__\\' }
+          foreach ($file in $files) { python -m py_compile $file.FullName }
+      - name: Run non-GUI smoke test
+        run: python smoke_test.py
