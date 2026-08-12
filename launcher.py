@@ -1,6 +1,7 @@
-"""Single canonical POS launcher with functional feature integrations."""
+"""Canonical enterprise POS launcher with deterministic feature integration."""
 import os
 import pos_app
+from first_run_bootstrap import needs_first_run, reset_for_new_installation, mark_initialized
 from persistent_data_patch import install as install_persistent_data
 from advanced_features import install
 from operational_patch import install as install_operational
@@ -44,6 +45,16 @@ from fresh_database_patch import install as install_fresh_database
 from luxury_theme_patch import install as install_luxury_theme
 from enterprise_transaction_guard import install as install_enterprise_transaction_guard
 
+# Never let a packaged development/test database become the database of a new
+# installation. This executes only before any Store/UI construction. Once the
+# installation marker exists, the application will never silently reset data.
+try:
+    first_run = needs_first_run(pos_app.DB)
+    if first_run:
+        reset_for_new_installation(pos_app.DB)
+except Exception:
+    first_run = False
+
 install_persistent_data(pos_app)
 install(pos_app.App)
 install_operational(pos_app.App)
@@ -63,7 +74,6 @@ install_product_visuals(pos_app.App)
 install_catalog_runtime_final(pos_app.App)
 install_product_visual_ui(pos_app.App)
 install_pos_stability(pos_app.App, pos_app.Store, pos_app.Login)
-# Tk themes must not create a default root during headless validation/CLI imports.
 if os.name == 'nt' or os.environ.get('DISPLAY'):
     install_premium_ui(pos_app.App, pos_app.Login)
 install_printer_page_final(pos_app.App)
@@ -87,6 +97,18 @@ install_database_reset(pos_app.App)
 install_fresh_database(pos_app.App)
 install_luxury_theme(pos_app.App)
 install_enterprise_transaction_guard(pos_app.App)
+
+# The Store constructor creates the schema/default system records. The marker
+# is written only after that initialization path succeeds, so a fresh install
+# is then permanently recognized as initialized on subsequent launches.
+if first_run:
+    try:
+        probe = pos_app.Store(pos_app.DB)
+        probe.c.close()
+        mark_initialized(pos_app.DB)
+    except Exception:
+        # Do not mark an incomplete installation as initialized.
+        pass
 
 if hasattr(pos_app.App, "bulk_menu_center") and not hasattr(pos_app.App, "bulk_center"):
     pos_app.App.bulk_center = pos_app.App.bulk_menu_center
